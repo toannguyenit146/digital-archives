@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Alert,
   Animated,
@@ -10,8 +10,11 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator,
+  Platform
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,6 +54,10 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
     'law': '⚖️',
     'decree': '📃',
     'circular': '🔄',
+    'user': '👤',
+    'lock': '🔒',
+    'eye': '👁',
+    'eye-off': '🙈',
   };
 
   const iconChar = iconMap[name] || '•';
@@ -69,6 +76,7 @@ interface CategoryItem {
   icon: string;
   description: string;
   hasSubcategories?: boolean;
+  allowUpload?: boolean;
 }
 
 interface SubcategoryItem {
@@ -79,6 +87,12 @@ interface SubcategoryItem {
   parentId: string;
 }
 
+interface User {
+  username: string;
+  name: string;
+  role: string;
+}
+
 const categories: CategoryItem[] = [
   {
     id: '1',
@@ -87,6 +101,7 @@ const categories: CategoryItem[] = [
     icon: 'document-text',
     description: 'Quản lý và truy cập tài liệu',
     hasSubcategories: true,
+    allowUpload: true,
   },
   {
     id: '2',
@@ -94,6 +109,7 @@ const categories: CategoryItem[] = [
     color: '#7ED321',
     icon: 'school',
     description: 'Kiến thức cần thiết thường xuyên',
+    allowUpload: true,
   },
   {
     id: '3',
@@ -101,6 +117,7 @@ const categories: CategoryItem[] = [
     color: '#F5A623',
     icon: 'people',
     description: 'Thông tin sĩ quan, quân nhân chuyên nghiệp',
+    allowUpload: true,
   },
   {
     id: '4',
@@ -108,6 +125,7 @@ const categories: CategoryItem[] = [
     color: '#D0021B',
     icon: 'shield',
     description: 'Hạ sĩ quan và binh sĩ',
+    allowUpload: true,
   },
   {
     id: '5',
@@ -115,6 +133,7 @@ const categories: CategoryItem[] = [
     color: '#9013FE',
     icon: 'medal',
     description: 'Đảng viên và đoàn viên',
+    allowUpload: true,
   },
   {
     id: '6',
@@ -122,6 +141,7 @@ const categories: CategoryItem[] = [
     color: '#50E3C2',
     icon: 'ribbon',
     description: 'Thông tin về đoàn viên',
+    allowUpload: true,
   },
   {
     id: '7',
@@ -129,6 +149,7 @@ const categories: CategoryItem[] = [
     color: '#B8E986',
     icon: 'help-circle',
     description: 'Câu hỏi giáo dục chính trị',
+    allowUpload: true,
   },
   {
     id: '8',
@@ -136,6 +157,7 @@ const categories: CategoryItem[] = [
     color: '#4BD5EA',
     icon: 'library',
     description: 'Câu hỏi về pháp luật',
+    allowUpload: true,
   },
 ];
 
@@ -144,12 +166,113 @@ const documentSubcategories: SubcategoryItem[] = [
   { id: '1-2', title: 'Nghị quyết', icon: 'resolution', description: 'Nghị quyết và quyết định', parentId: '1' },
   { id: '1-3', title: 'Khoa học', icon: 'science', description: 'Tài liệu khoa học kỹ thuật', parentId: '1' },
   { id: '1-4', title: 'Kinh tế - Xã hội', icon: 'economics', description: 'Tài liệu kinh tế xã hội', parentId: '1' },
-  { id: '1-5', title: 'QS-QP', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1' },
+  { id: '1-5', title: 'Quân sự - Quốc phòng', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1' },
   { id: '1-6', title: 'Văn hóa', icon: 'culture', description: 'Tài liệu văn hóa', parentId: '1' },
   { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1' },
   { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1' },
   { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1' },
 ];
+
+// Mock user database
+const mockUsers = [
+  { username: 'admin', password: '123456', name: 'Quản trị viên', role: 'Administrator' },
+  { username: 'hoangocanh', password: '12346789', name: 'Hoa Ngọc Ánh', role: 'TL THc' },
+  { username: 'nhtt', password: '18082002', name: 'Nguyễn Huỳnh Thanh Toàn', role: 'Programmer' },
+];
+
+const LoginScreen: React.FC<{
+  onLogin: (user: User) => void;
+}> = ({ onLogin }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+
+    setLoading(true);
+
+    // Simulate network delay
+    setTimeout(() => {
+      const user = mockUsers.find(u => u.username === username && u.password === password);
+      
+      setLoading(false);
+      
+      if (user) {
+        onLogin({
+          username: user.username,
+          name: user.name,
+          role: user.role,
+        });
+      } else {
+        Alert.alert('Lỗi đăng nhập', 'Tên đăng nhập hoặc mật khẩu không đúng');
+      }
+    }, 1500);
+  };
+
+  return (
+    <SafeAreaView style={styles.loginContainer}>
+      <View style={styles.loginContent}>
+        <View style={styles.loginHeader}>
+          <Icon name="document-text" size={80} color="#667eea" />
+          <Text style={styles.loginTitle}>Digital Archives</Text>
+          <Text style={styles.loginSubtitle}>Hệ thống quản lý tài liệu số</Text>
+        </View>
+
+        <View style={styles.loginForm}>
+          <View style={styles.inputContainer}>
+            <Icon name="user" size={20} color="#64748b" />
+            <TextInput
+              style={styles.loginInput}
+              placeholder="Tên đăng nhập"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Icon name="lock" size={20} color="#64748b" />
+            <TextInput
+              style={styles.loginInput}
+              placeholder="Mật khẩu"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+              <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#64748b" />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <Text style={styles.loginButtonText}>Đăng nhập</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.demoCredentials}>
+            <Text style={styles.demoTitle}>Tài khoản demo:</Text>
+            <Text style={styles.demoText}>admin / 123456</Text>
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+};
 
 const menuItems = [
   { id: 'home', title: 'Trang chủ', icon: 'home' },
@@ -202,7 +325,8 @@ const AnimatedDrawer: React.FC<{
   isVisible: boolean;
   onItemPress: (itemId: string) => void;
   onClose: () => void;
-}> = ({ isVisible, onItemPress, onClose }) => {
+  user: User;
+}> = ({ isVisible, onItemPress, onClose, user }) => {
   const slideAnim = useRef(new Animated.Value(-width * 0.8)).current;
 
   React.useEffect(() => {
@@ -243,6 +367,10 @@ const AnimatedDrawer: React.FC<{
             </TouchableOpacity>
             <Text style={styles.drawerTitle}>Kho Lưu Trữ Số</Text>
             <Text style={styles.drawerSubtitle}>Digital Archives</Text>
+            <View style={styles.userInfo}>
+              <Icon name="user" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.userInfoText}>{user.name} - {user.role}</Text>
+            </View>
           </View>
           
           <ScrollView style={styles.drawerContent}>
@@ -356,42 +484,71 @@ const SearchModal: React.FC<{
 const UploadModal: React.FC<{
   isVisible: boolean;
   onClose: () => void;
-  subcategory: SubcategoryItem | null;
-}> = ({ isVisible, onClose, subcategory }) => {
-  const [fileName, setFileName] = useState('');
-  const [uploaderName, setUploaderName] = useState('');
+  category: string;
+  subcategory?: string;
+  user: User;
+}> = ({ isVisible, onClose, category, subcategory, user }) => {
+  const [selectedFile, setSelectedFile] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
-  const handleUpload = () => {
-    if (!fileName.trim() || !uploaderName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng điền đầy đủ thông tin');
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setSelectedFile(result.assets[0]);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể chọn tệp');
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      Alert.alert('Lỗi', 'Vui lòng chọn tệp để tải lên');
       return;
     }
-    
-    const uploadInfo = {
-      category: 'Tài liệu',
-      subcategory: subcategory?.title,
-      fileName: fileName,
-      fileType: fileName.split('.').pop()?.toUpperCase() || 'UNKNOWN',
-      fileSize: '2.5 MB', // Mock data
-      uploader: uploaderName,
-    };
-    
-    Alert.alert(
-      'Xác nhận tải lên',
-      `Danh mục: ${uploadInfo.category} > ${uploadInfo.subcategory}\nTên file: ${uploadInfo.fileName}\nLoại file: ${uploadInfo.fileType}\nKích thước: ${uploadInfo.fileSize}\nNgười tải: ${uploadInfo.uploader}`,
-      [
-        { text: 'Hủy', style: 'cancel' },
-        { 
-          text: 'Tải lên', 
-          onPress: () => {
-            Alert.alert('Thành công', 'Tài liệu đã được tải lên!');
-            setFileName('');
-            setUploaderName('');
-            onClose();
-          }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    // Simulate file upload with progress
+    const interval = setInterval(() => {
+      setUploadProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(interval);
+          setUploading(false);
+          Alert.alert(
+            'Thành công', 
+            'Tài liệu đã được tải lên thành công!',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  setSelectedFile(null);
+                  setUploadProgress(0);
+                  onClose();
+                }
+              }
+            ]
+          );
+          return 100;
         }
-      ]
-    );
+        return prev + Math.random() * 15;
+      });
+    }, 200);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   return (
@@ -412,35 +569,80 @@ const UploadModal: React.FC<{
           
           <View style={styles.uploadInfo}>
             <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
-            <Text style={styles.uploadInfoValue}>Tài liệu {'>'} {subcategory?.title}</Text>
+            <Text style={styles.uploadInfoValue}>
+              {category} {subcategory && subcategory != category && `> ${subcategory}`}
+            </Text>
           </View>
-          
-          <View style={styles.uploadInputContainer}>
-            <Text style={styles.inputLabel}>Tên file:</Text>
-            <TextInput
-              style={styles.uploadInput}
-              placeholder="Nhập tên file (ví dụ: document.pdf)"
-              value={fileName}
-              onChangeText={setFileName}
-            />
-          </View>
-          
-          <View style={styles.uploadInputContainer}>
-            <Text style={styles.inputLabel}>Người tải lên:</Text>
-            <TextInput
-              style={styles.uploadInput}
-              placeholder="Nhập tên người tải lên"
-              value={uploaderName}
-              onChangeText={setUploaderName}
-            />
+
+          <View style={styles.uploaderInfo}>
+            <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
+            <Text style={styles.uploadInfoValue}>{user.name}</Text>
           </View>
           
           <TouchableOpacity 
-            style={styles.uploadButton}
-            onPress={handleUpload}
+            style={styles.filePickerButton}
+            onPress={pickDocument}
+            disabled={uploading}
           >
-            <Icon name="upload" size={20} color="white" />
-            <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
+            <Icon name="folder" size={20} color="#667eea" />
+            <Text style={styles.filePickerText}>
+              {selectedFile ? 'Chọn tệp khác' : 'Chọn tệp từ máy'}
+            </Text>
+          </TouchableOpacity>
+
+          {selectedFile && (
+            <View style={styles.selectedFileInfo}>
+              <View style={styles.fileInfoRow}>
+                <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
+                <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
+              </View>
+              <View style={styles.fileInfoRow}>
+                <Text style={styles.fileInfoLabel}>Kích thước:</Text>
+                <Text style={styles.fileInfoValue}>
+                  {selectedFile.size ? formatFileSize(selectedFile.size) : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.fileInfoRow}>
+                <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
+                <Text style={styles.fileInfoValue}>
+                  {selectedFile.mimeType || 'N/A'}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {uploading && (
+            <View style={styles.progressContainer}>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${uploadProgress}%` }
+                  ]} 
+                />
+              </View>
+              <Text style={styles.progressText}>
+                {Math.round(uploadProgress)}% - Đang tải lên...
+              </Text>
+            </View>
+          )}
+          
+          <TouchableOpacity 
+            style={[
+              styles.uploadButton,
+              (!selectedFile || uploading) && styles.uploadButtonDisabled
+            ]}
+            onPress={handleUpload}
+            disabled={!selectedFile || uploading}
+          >
+            {uploading ? (
+              <ActivityIndicator size="small" color="white" />
+            ) : (
+              <>
+                <Icon name="upload" size={20} color="white" />
+                <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -449,6 +651,7 @@ const UploadModal: React.FC<{
 };
 
 export default function EnhancedDigitalArchivesV2() {
+  const [user, setUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSubcategory, setSelectedSubcategory] = useState<SubcategoryItem | null>(null);
@@ -456,12 +659,45 @@ export default function EnhancedDigitalArchivesV2() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'category' | 'subcategory'>('home');
 
+  const handleLogin = (loggedInUser: User) => {
+    setUser(loggedInUser);
+  };
+
+  const handleLogout = () => {
+    Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
+      { text: 'Hủy', style: 'cancel' },
+      { 
+        text: 'Đăng xuất', 
+        onPress: () => {
+          setUser(null);
+          setSelectedCategory(null);
+          setSelectedSubcategory(null);
+          setCurrentView('home');
+        }
+      }
+    ]);
+  };
+
+  if (!user) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
   const handleCategoryPress = (categoryId: string, title: string) => {
     console.log(`Selected category: ${title}`);
     setSelectedCategory(categoryId);
     
     const category = categories.find(cat => cat.id === categoryId);
-    if (category?.hasSubcategories) {
+    if (category != undefined && !category?.hasSubcategories) {
+      setCurrentView('subcategory');
+      // For categories without subcategories, create a virtual subcategory
+      setSelectedSubcategory({
+        id: `${categoryId}-main`,
+        title: category.title,
+        icon: category.icon,
+        description: category.description,
+        parentId: categoryId,
+      });
+    } else if (category != undefined) {
       setCurrentView('category');
     }
   };
@@ -488,10 +724,7 @@ export default function EnhancedDigitalArchivesV2() {
         Alert.alert('Thêm', 'Chức năng bổ sung');
         break;
       case 'exit':
-        Alert.alert('Thoát', 'Bạn có muốn thoát ứng dụng?', [
-          { text: 'Hủy', style: 'cancel' },
-          { text: 'Thoát', onPress: () => console.log('Exit app') }
-        ]);
+        handleLogout();
         break;
       default:
         const category = categories.find(cat => cat.id === itemId);
@@ -504,12 +737,34 @@ export default function EnhancedDigitalArchivesV2() {
 
   const handleBackPress = () => {
     if (currentView === 'subcategory') {
-      setCurrentView('category');
-      setSelectedSubcategory(null);
+      const category = categories.find(cat => cat.id === selectedCategory);
+      if (category?.hasSubcategories) {
+        setCurrentView('category');
+        setSelectedSubcategory(null);
+      } else {
+        setCurrentView('home');
+        setSelectedCategory(null);
+        setSelectedSubcategory(null);
+      }
     } else if (currentView === 'category') {
       setCurrentView('home');
       setSelectedCategory(null);
     }
+  };
+
+  const getCurrentCategory = () => {
+    const category = categories.find(cat => cat.id === selectedCategory);
+    return category?.title || '';
+  };
+
+  const getCurrentSubcategory = () => {
+    return selectedSubcategory?.title || '';
+  };
+
+  const canUpload = () => {
+    if (currentView === 'home') return false;
+    const category = categories.find(cat => cat.id === selectedCategory);
+    return category?.allowUpload || false;
   };
 
   const renderHomeView = () => (
@@ -530,6 +785,12 @@ export default function EnhancedDigitalArchivesV2() {
             </View>
           </View>
         </View>
+      </View>
+
+      {/* User Welcome Section */}
+      <View style={styles.welcomeSection}>
+        <Text style={styles.welcomeText}>Xin chào, {user.name}!</Text>
+        <Text style={styles.welcomeSubtext}>Chọn danh mục để bắt đầu làm việc</Text>
       </View>
 
       {/* Categories Grid */}
@@ -618,15 +879,17 @@ export default function EnhancedDigitalArchivesV2() {
         <Text style={styles.subcategorySubtitle}>{selectedSubcategory?.description}</Text>
       </View>
       
-      <View style={styles.uploadSection}>
-        <TouchableOpacity 
-          style={styles.uploadFloatingButton}
-          onPress={() => setIsUploadModalOpen(true)}
-        >
-          <Icon name="upload" size={24} color="white" />
-          <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
-        </TouchableOpacity>
-      </View>
+      {canUpload() && (
+        <View style={styles.uploadSection}>
+          <TouchableOpacity 
+            style={styles.uploadFloatingButton}
+            onPress={() => setIsUploadModalOpen(true)}
+          >
+            <Icon name="upload" size={24} color="white" />
+            <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
+          </TouchableOpacity>
+        </View>
+      )}
       
       <View style={styles.documentsContainer}>
         <Text style={styles.documentsTitle}>Tài liệu trong danh mục</Text>
@@ -672,6 +935,7 @@ export default function EnhancedDigitalArchivesV2() {
         isVisible={isDrawerOpen}
         onItemPress={handleDrawerItemPress}
         onClose={() => setIsDrawerOpen(false)}
+        user={user}
       />
 
       {/* Search Modal */}
@@ -684,7 +948,9 @@ export default function EnhancedDigitalArchivesV2() {
       <UploadModal
         isVisible={isUploadModalOpen}
         onClose={() => setIsUploadModalOpen(false)}
-        subcategory={selectedSubcategory}
+        category={getCurrentCategory()}
+        subcategory={getCurrentSubcategory()}
+        user={user}
       />
     </SafeAreaView>
   );
@@ -694,6 +960,91 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8fafc',
+  },
+  // Login Screen Styles
+  loginContainer: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
+  loginContent: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 40,
+  },
+  loginTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginTop: 20,
+    marginBottom: 5,
+  },
+  loginSubtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  loginForm: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 25,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  loginInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1e293b',
+    marginLeft: 10,
+  },
+  loginButton: {
+    backgroundColor: '#667eea',
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#94a3b8',
+  },
+  loginButtonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  demoCredentials: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 10,
+  },
+  demoTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 5,
+  },
+  demoText: {
+    fontSize: 13,
+    color: '#64748b',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
   headerBar: {
     height: 60,
@@ -793,6 +1144,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'white',
     textAlign: 'center',
+  },
+  welcomeSection: {
+    backgroundColor: 'white',
+    marginHorizontal: 15,
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  welcomeText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1e293b',
+    marginBottom: 5,
+  },
+  welcomeSubtext: {
+    fontSize: 14,
+    color: '#64748b',
   },
   categoriesContainer: {
     paddingHorizontal: 15,
@@ -1047,6 +1420,20 @@ const styles = StyleSheet.create({
   drawerSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.9)',
+    marginBottom: 10,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 10,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  userInfoText: {
+    color: 'rgba(255,255,255,0.9)',
+    fontSize: 14,
+    marginLeft: 8,
   },
   drawerContent: {
     flex: 1,
@@ -1151,6 +1538,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
+    maxHeight: '80%',
   },
   uploadHeader: {
     flexDirection: 'row',
@@ -1167,7 +1555,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
     borderRadius: 12,
     padding: 15,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   uploadInfoLabel: {
     fontSize: 14,
@@ -1179,23 +1567,69 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#667eea',
   },
-  uploadInputContainer: {
-    marginBottom: 15,
+  uploaderInfo: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
   },
-  inputLabel: {
-    fontSize: 14,
-    color: '#1e293b',
+  filePickerButton: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 2,
+    borderColor: '#667eea',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  filePickerText: {
+    color: '#667eea',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  selectedFileInfo: {
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 20,
+  },
+  fileInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 8,
+  },
+  fileInfoLabel: {
+    fontSize: 14,
+    color: '#64748b',
     fontWeight: '500',
   },
-  uploadInput: {
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
+  fileInfoValue: {
+    fontSize: 14,
     color: '#1e293b',
+    flex: 1,
+    textAlign: 'right',
+    marginLeft: 10,
+  },
+  progressContainer: {
+    marginBottom: 20,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#667eea',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
   },
   uploadButton: {
     backgroundColor: '#667eea',
@@ -1205,6 +1639,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 15,
     marginTop: 10,
+  },
+  uploadButtonDisabled: {
+    backgroundColor: '#94a3b8',
   },
   uploadButtonText: {
     color: 'white',
