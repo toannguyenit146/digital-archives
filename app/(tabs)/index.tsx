@@ -8,16 +8,52 @@ import {
   Dimensions,
   Modal,
   SafeAreaView,
+  Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
+
+// Icon component that works across all platforms
+const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({ 
+  name, 
+  size = 20, 
+  color = '#000' 
+}) => {
+  const iconMap: { [key: string]: string } = {
+    'menu': '☰',
+    'search': '🔍',
+    'notifications': '🔔',
+    'close': '✕',
+    'home': '🏠',
+    'document-text': '📄',
+    'school': '🎓',
+    'people': '👥',
+    'shield': '🛡️',
+    'medal': '🏅',
+    'ribbon': '🎗️',
+    'help-circle': '❓',
+    'library': '📚',
+    'ellipsis-horizontal': '⋯',
+    'settings': '⚙️',
+    'exit': '🚪',
+    'chevron-forward': '▶',
+    'folder': '📁',
+  };
+
+  const iconChar = iconMap[name] || '•';
+  
+  return (
+    <Text style={{ fontSize: size, color, lineHeight: size }}>
+      {iconChar}
+    </Text>
+  );
+};
 
 interface CategoryItem {
   id: string;
   title: string;
   color: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: string;
   description: string;
 }
 
@@ -81,7 +117,7 @@ const categories: CategoryItem[] = [
 ];
 
 const menuItems = [
-  { id: 'home', title: 'Trang chủ', icon: 'home' as keyof typeof Ionicons.glyphMap },
+  { id: 'home', title: 'Trang chủ', icon: 'home' },
   { id: 'separator1', title: '--- Danh mục ---', icon: null },
   ...categories.map(cat => ({ 
     id: cat.id, 
@@ -90,9 +126,9 @@ const menuItems = [
     isCategory: true 
   })),
   { id: 'separator2', title: '--- Khác ---', icon: null },
-  { id: 'more', title: 'Thêm', icon: 'ellipsis-horizontal' as keyof typeof Ionicons.glyphMap },
-  { id: 'settings', title: 'Cài đặt', icon: 'settings' as keyof typeof Ionicons.glyphMap },
-  { id: 'exit', title: 'Thoát', icon: 'exit' as keyof typeof Ionicons.glyphMap },
+  { id: 'more', title: 'Thêm', icon: 'ellipsis-horizontal' },
+  { id: 'settings', title: 'Cài đặt', icon: 'settings' },
+  { id: 'exit', title: 'Thoát', icon: 'exit' },
 ];
 
 const CategoryCard: React.FC<{
@@ -102,12 +138,12 @@ const CategoryCard: React.FC<{
   <TouchableOpacity style={[styles.categoryCard, { backgroundColor: item.color }]} onPress={onPress}>
     <View style={styles.cardContent}>
       <View style={[styles.cardIcon, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
-        <Ionicons name={item.icon} size={24} color="white" />
+        <Icon name={item.icon} size={24} color="white" />
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardDescription}>{item.description}</Text>
       <View style={styles.cardArrow}>
-        <Ionicons name="chevron-forward" size={20} color="white" />
+        <Icon name="chevron-forward" size={20} color="white" />
       </View>
     </View>
   </TouchableOpacity>
@@ -120,7 +156,7 @@ const DrawerContent: React.FC<{
   <View style={styles.drawerContainer}>
     <View style={styles.drawerHeader}>
       <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-        <Ionicons name="close" size={24} color="white" />
+        <Icon name="close" size={24} color="white" />
       </TouchableOpacity>
       <Text style={styles.drawerTitle}>Kho Lưu Trữ Số</Text>
       <Text style={styles.drawerSubtitle}>Digital Archives</Text>
@@ -143,7 +179,7 @@ const DrawerContent: React.FC<{
             onPress={() => onItemPress(item.id)}
           >
             {item.icon && (
-              <Ionicons 
+              <Icon 
                 name={item.icon} 
                 size={20} 
                 color={item.id === 'exit' ? '#ff4757' : '#64748b'} 
@@ -158,7 +194,7 @@ const DrawerContent: React.FC<{
               {item.title}
             </Text>
             {(item as any).isCategory && (
-              <Ionicons name="chevron-forward" size={16} color="#64748b" />
+              <Icon name="chevron-forward" size={16} color="#64748b" />
             )}
           </TouchableOpacity>
         );
@@ -217,15 +253,15 @@ export default function EnhancedDigitalArchives() {
           style={styles.menuButton} 
           onPress={() => setIsDrawerOpen(true)}
         >
-          <Ionicons name="menu" size={24} color="white" />
+          <Icon name="menu" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerBarTitle}>Kho Lưu Trữ Số</Text>
         <View style={styles.headerBarRight}>
           <TouchableOpacity style={styles.searchButton}>
-            <Ionicons name="search" size={20} color="white" />
+            <Icon name="search" size={20} color="white" />
           </TouchableOpacity>
           <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="notifications" size={20} color="white" />
+            <Icon name="notifications" size={20} color="white" />
             <View style={styles.notificationBadge}>
               <Text style={styles.notificationBadgeText}>3</Text>
             </View>
@@ -280,22 +316,22 @@ export default function EnhancedDigitalArchives() {
           <Text style={styles.statsTitle}>Thống kê hệ thống</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Ionicons name="folder" size={32} color="#667eea" />
+              <Icon name="folder" size={32} color="#667eea" />
               <Text style={styles.statNumber}>8</Text>
               <Text style={styles.statLabel}>Danh mục</Text>
             </View>
             <View style={styles.statCard}>
-              <Ionicons name="document-text" size={32} color="#7ED321" />
+              <Icon name="document-text" size={32} color="#7ED321" />
               <Text style={styles.statNumber}>1,250+</Text>
               <Text style={styles.statLabel}>Tài liệu</Text>
             </View>
             <View style={styles.statCard}>
-              <Ionicons name="help-circle" size={32} color="#F5A623" />
+              <Icon name="help-circle" size={32} color="#F5A623" />
               <Text style={styles.statNumber}>500+</Text>
               <Text style={styles.statLabel}>Câu hỏi</Text>
             </View>
             <View style={styles.statCard}>
-              <Ionicons name="people" size={32} color="#D0021B" />
+              <Icon name="people" size={32} color="#D0021B" />
               <Text style={styles.statNumber}>2,100+</Text>
               <Text style={styles.statLabel}>Người dùng</Text>
             </View>
