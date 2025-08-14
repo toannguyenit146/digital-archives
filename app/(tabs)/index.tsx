@@ -20,6 +20,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
+import mime from 'mime';
 
 const { width, height } = Dimensions.get('window');
 
@@ -631,113 +632,101 @@ const UploadModal: React.FC<{
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      Alert.alert('Lỗi', 'Vui lòng chọn tệp để tải lên');
-      return;
-    }
+const handleUpload = async () => {
+  if (!selectedFile) {
+    Alert.alert('Lỗi', 'Vui lòng chọn tệp để tải lên');
+    return;
+  }
 
-    if (!documentTitle.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên tài liệu');
-      return;
-    }
+  if (!documentTitle.trim()) {
+    Alert.alert('Lỗi', 'Vui lòng nhập tên tài liệu');
+    return;
+  }
 
-    if (!authorName.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập tên tác giả');
-      return;
-    }
+  if (!authorName.trim()) {
+    Alert.alert('Lỗi', 'Vui lòng nhập tên tác giả');
+    return;
+  }
 
-    setUploading(true);
+  setUploading(true);
+  setUploadProgress(0);
+
+  try {
+    // Category / Subcategory
+    const keyNameCategory = categories.find(cat => cat.title === category)?.keyName;
+    const keyNameSubCategory = documentSubcategories.find(cat => cat.title === subcategory)?.keyName;
+
+    // Extension & MIME type auto detect
+    const fileExt = selectedFile.name?.split('.').pop()?.toLowerCase() || '';
+    const mimeType =
+      selectedFile.mimeType ||
+      selectedFile.type ||
+      mime.getType(fileExt) ||
+      'application/octet-stream';
+
+    // Tạo tên file & path
+    const fileName = `${Date.now()}.${fileExt}`;
+    const filePath = `${keyNameCategory}/${keyNameSubCategory || 'general'}/${fileName}`;
+
+    // Giả lập progress
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => Math.min(prev + 10, 90));
+    }, 200);
+
+    // Chuyển file URI -> Blob
+    const fileResponse = await fetch(selectedFile.uri);
+    const fileBlob = await fileResponse.blob();
+
+    // Upload Supabase
+    const { error: uploadError } = await supabase.storage
+      .from('documents')
+      .upload(filePath, fileBlob, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    clearInterval(progressInterval);
+    setUploadProgress(100);
+
+    if (uploadError) throw uploadError;
+
+    // Public URL
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath);
+
+    // Lưu DB
+    const { error: dbError } = await supabase.from('documents').insert({
+      title: documentTitle,
+      filename: selectedFile.name,
+      author: authorName,
+      category: keyNameCategory,
+      subcategory: keyNameSubCategory || null,
+      file_url: urlData.publicUrl,
+      file_size: selectedFile.size || 0,
+      file_type: mimeType,
+    });
+
+    if (dbError) throw dbError;
+
+    setUploading(false);
+    Alert.alert('Thành công', 'Tài liệu đã được tải lên thành công!', [
+      {
+        text: 'OK',
+        onPress: () => {
+          setSelectedFile(null);
+          setDocumentTitle('');
+          setAuthorName('');
+          setUploadProgress(0);
+          onUploadSuccess();
+          onClose();
+        },
+      },
+    ]);
+  } catch (error) {
+    setUploading(false);
     setUploadProgress(0);
-
-    try {
-      // Upload file to Supabase Storage
-      const keyNameCategory = categories.find(cat => cat.title === category)?.keyName;
-      const keyNameSubCategory = documentSubcategories.find(cat => cat.title === subcategory)?.keyName;
-      console.log(`Selected sub category: ${keyNameSubCategory}`);
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${keyNameCategory}/${keyNameSubCategory || 'general'}/${fileName}`;
-
-      // Create FormData for file upload
-      const formData = new FormData();
-      formData.append('file', {
-        uri: selectedFile.uri,
-        type: selectedFile.mimeType,
-        name: selectedFile.name,
-      } as any);
-
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setUploadProgress((prev) => Math.min(prev + 10, 90));
-      }, 200);
-
-      console.log(selectedFile.type);
-      // Upload to Supabase storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('documents')
-        .upload(filePath, selectedFile, {
-          contentType: selectedFile.type,
-          upsert: true,
-        });
-
-      clearInterval(progressInterval);
-      setUploadProgress(100);
-      console.log(`File path: ${filePath}`);
-      if (uploadError) {
-        console.log(`Upload error: ${uploadError}`);
-        throw uploadError;
-      }
-
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('documents')
-        .getPublicUrl(filePath);
-
-      console.log(`URL data: ${urlData}`);
-      // Save document metadata to database
-      const { error: dbError } = await supabase
-        .from('documents')
-        .insert({
-          title: documentTitle,
-          filename: selectedFile.name,
-          author: authorName,
-          category: keyNameCategory,
-          subcategory: keyNameSubCategory || null,
-          file_url: urlData.publicUrl,
-          file_size: selectedFile.size || 0,
-          file_type: selectedFile.mimeType || 'application/octet-stream',
-        });
-
-      if (dbError) {
-        throw dbError;
-      }
-
-      setUploading(false);
-      Alert.alert(
-        'Thành công', 
-        'Tài liệu đã được tải lên thành công!',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              setSelectedFile(null);
-              setDocumentTitle('');
-              setAuthorName('');
-              setUploadProgress(0);
-              onUploadSuccess();
-              onClose();
-            }
-          }
-        ]
-      );
-
-    } catch (error) {
-      setUploading(false);
-      setUploadProgress(0);
-      Alert.alert('Lỗi ' + error, 'Có lỗi xảy ra trong quá trình tải lên tài liệu');
-    }
-  };
+    Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình tải lên tài liệu:\n' + error);
+  }
+};  
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
