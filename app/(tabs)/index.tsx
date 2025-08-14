@@ -1,3 +1,6 @@
+// First, install required dependencies:
+// npm install @supabase/supabase-js expo-secure-store
+
 import React, { useRef, useState, useEffect } from 'react';
 import {
   Alert,
@@ -15,8 +18,16 @@ import {
   Platform
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
+import { createClient } from '@supabase/supabase-js';
+import * as SecureStore from 'expo-secure-store';
 
 const { width, height } = Dimensions.get('window');
+
+// Supabase configuration
+const supabaseUrl = 'https://fnfolijesketyasmmplq.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZuZm9saWplc2tldHlhc21tcGxxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ4NzQ2MjEsImV4cCI6MjA3MDQ1MDYyMX0.j73Hx7cEdH5QISIXsgDvVy7RBdazJ1TysQejLt2OoIU';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Icon component that works across all platforms
 const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({ 
@@ -58,6 +69,13 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
     'lock': '🔒',
     'eye': '👁',
     'eye-off': '🙈',
+    'image': '🖼️',
+    'video': '🎥',
+    'download': '⬇️',
+    'edit': '✏️',
+    'training': '🎯',
+    'party': '🏛️',
+    'logout': '🚪',
   };
 
   const iconChar = iconMap[name] || '•';
@@ -77,6 +95,7 @@ interface CategoryItem {
   description: string;
   hasSubcategories?: boolean;
   allowUpload?: boolean;
+  keyName: string;
 }
 
 interface SubcategoryItem {
@@ -85,12 +104,27 @@ interface SubcategoryItem {
   icon: string;
   description: string;
   parentId: string;
+  keyName: string;
 }
 
 interface User {
+  id: string;
   username: string;
   name: string;
-  role: string;
+  role?: string;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  filename: string;
+  author: string;
+  category: string;
+  subcategory?: string;
+  uploadedAt: string;
+  fileUrl: string;
+  fileSize: number;
+  fileType: string;
 }
 
 const categories: CategoryItem[] = [
@@ -102,6 +136,7 @@ const categories: CategoryItem[] = [
     description: 'Quản lý và truy cập tài liệu',
     hasSubcategories: true,
     allowUpload: true,
+    keyName: "tailieu",
   },
   {
     id: '2',
@@ -110,6 +145,7 @@ const categories: CategoryItem[] = [
     icon: 'school',
     description: 'Kiến thức cần thiết thường xuyên',
     allowUpload: true,
+    keyName: "kienthucthuongtruc",
   },
   {
     id: '3',
@@ -118,66 +154,77 @@ const categories: CategoryItem[] = [
     icon: 'people',
     description: 'Thông tin sĩ quan, quân nhân chuyên nghiệp',
     allowUpload: true,
+    keyName: "doituongsqvaqncn",
   },
   {
     id: '4',
+    title: 'Đối tượng HLTPĐ',
+    color: '#FF6B6B',
+    icon: 'training',
+    description: 'Hạ sĩ quan và binh sĩ luân phiên',
+    allowUpload: true,
+    keyName: "doituonghltpd",
+  },
+  {
+    id: '5',
     title: 'Đối tượng HSQ, BS',
     color: '#D0021B',
     icon: 'shield',
     description: 'Hạ sĩ quan và binh sĩ',
     allowUpload: true,
-  },
-  {
-    id: '5',
-    title: 'ĐTB, ĐVM',
-    color: '#9013FE',
-    icon: 'medal',
-    description: 'Đảng viên và đoàn viên',
-    allowUpload: true,
+    keyName: "hasiquanvabinhsi",
   },
   {
     id: '6',
+    title: 'ĐTĐ, ĐVM',
+    color: '#9013FE',
+    icon: 'party',
+    description: 'Đảng viên và đảng viên mới',
+    allowUpload: true,
+    keyName: "dangvienvadangvienmoi",
+  },
+  {
+    id: '7',
     title: 'Đối tượng Đoàn viên',
     color: '#50E3C2',
     icon: 'ribbon',
     description: 'Thông tin về đoàn viên',
     allowUpload: true,
+    keyName: "doituongdoanvien",
   },
   {
-    id: '7',
+    id: '8',
     title: 'Cấu hỏi kiến thức GDCT',
     color: '#B8E986',
     icon: 'help-circle',
     description: 'Câu hỏi giáo dục chính trị',
     allowUpload: true,
+    keyName: "cauhoikienthucgdct",
+
   },
   {
-    id: '8',
+    id: '9',
     title: 'Cấu hỏi kiến thức pháp luật',
     color: '#4BD5EA',
     icon: 'library',
     description: 'Câu hỏi về pháp luật',
     allowUpload: true,
+    keyName: "cauhoikienthucphapluat",
   },
 ];
 
 const documentSubcategories: SubcategoryItem[] = [
-  { id: '1-1', title: 'Lịch sử', icon: 'history', description: 'Tài liệu lịch sử', parentId: '1' },
-  { id: '1-2', title: 'Nghị quyết', icon: 'resolution', description: 'Nghị quyết và quyết định', parentId: '1' },
-  { id: '1-3', title: 'Khoa học', icon: 'science', description: 'Tài liệu khoa học kỹ thuật', parentId: '1' },
-  { id: '1-4', title: 'Kinh tế - Xã hội', icon: 'economics', description: 'Tài liệu kinh tế xã hội', parentId: '1' },
-  { id: '1-5', title: 'Quân sự - Quốc phòng', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1' },
-  { id: '1-6', title: 'Văn hóa', icon: 'culture', description: 'Tài liệu văn hóa', parentId: '1' },
-  { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1' },
-  { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1' },
-  { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1' },
-];
-
-// Mock user database
-const mockUsers = [
-  { username: 'admin', password: '123456', name: 'Quản trị viên', role: 'Administrator' },
-  { username: 'hoangocanh', password: '12346789', name: 'Hoa Ngọc Ánh', role: 'TL THc' },
-  { username: 'nhtt', password: '18082002', name: 'Nguyễn Huỳnh Thanh Toàn', role: 'Programmer' },
+  { id: '1-1', title: 'Lịch sử', icon: 'history', description: 'Tài liệu lịch sử', parentId: '1', keyName: 'lichsu'},
+  { id: '1-2', title: 'Nghị quyết', icon: 'resolution', description: 'Nghị quyết và quyết định', parentId: '1', keyName: 'nghiquyet'},
+  { id: '1-3', title: 'Khoa học', icon: 'science', description: 'Tài liệu khoa học kỹ thuật', parentId: '1', keyName: 'khoahoc' },
+  { id: '1-4', title: 'Kinh tế - Xã hội', icon: 'economics', description: 'Tài liệu kinh tế xã hội', parentId: '1', keyName: 'kt-xh' },
+  { id: '1-5', title: 'Quân sự - Quốc phòng', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1', keyName: 'quansuvaquocphong' },
+  { id: '1-6', title: 'Văn hóa', icon: 'culture', description: 'Tài liệu văn hóa', parentId: '1', keyName: 'vanhoa' },
+  { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1', keyName: 'phapluat' },
+  { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1', keyName: 'nghidinh' },
+  { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1', keyName: 'thongtu' },
+  { id: '1-10', title: 'Hình ảnh', icon: 'image', description: 'Tài liệu hình ảnh', parentId: '1', keyName: 'hinhanh' },
+  { id: '1-11', title: 'Video', icon: 'video', description: 'Tài liệu video', parentId: '1', keyName: 'lich' },
 ];
 
 const LoginScreen: React.FC<{
@@ -188,30 +235,65 @@ const LoginScreen: React.FC<{
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    // Check if user is already logged in
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const userData = await SecureStore.getItemAsync('userData');
+      
+      if (token && userData) {
+        const user = JSON.parse(userData);
+        onLogin(user);
+      }
+    } catch (error) {
+      console.log('No existing session');
+    }
+  };
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin đăng nhập');
       return;
     }
 
     setLoading(true);
 
-    // Simulate network delay
-    setTimeout(() => {
-      const user = mockUsers.find(u => u.username === username && u.password === password);
-      
+    try {
+      // Query user from Supabase
+      const { data: users, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username.trim())
+        .eq('password', password.trim())
+        .single();
+
       setLoading(false);
-      
-      if (user) {
-        onLogin({
-          username: user.username,
-          name: user.name,
-          role: user.role,
-        });
-      } else {
+
+      if (error || !users) {
         Alert.alert('Lỗi đăng nhập', 'Tên đăng nhập hoặc mật khẩu không đúng');
+        return;
       }
-    }, 1500);
+
+      const user: User = {
+        id: users.id,
+        username: users.username,
+        name: users.full_name,
+        role: users.role || 'User',
+      };
+
+      // Store session
+      await SecureStore.setItemAsync('userToken', `token_${users.id}`);
+      await SecureStore.setItemAsync('userData', JSON.stringify(user));
+
+      onLogin(user);
+    } catch (error) {
+      setLoading(false);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình đăng nhập');
+    }
   };
 
   return (
@@ -266,7 +348,7 @@ const LoginScreen: React.FC<{
 
           <View style={styles.demoCredentials}>
             <Text style={styles.demoTitle}>Tài khoản demo:</Text>
-            <Text style={styles.demoText}>admin / 123456</Text>
+            <Text style={styles.demoText}>bantuyenhuan / 12346789</Text>
           </View>
         </View>
       </View>
@@ -284,9 +366,8 @@ const menuItems = [
     isCategory: true 
   })),
   { id: 'separator2', title: '--- Khác ---', icon: null },
-  { id: 'more', title: 'Thêm', icon: 'ellipsis-horizontal' },
   { id: 'settings', title: 'Cài đặt', icon: 'settings' },
-  { id: 'exit', title: 'Thoát', icon: 'exit' },
+  { id: 'logout', title: 'Đăng xuất', icon: 'logout' },
 ];
 
 const CategoryCard: React.FC<{
@@ -320,6 +401,44 @@ const SubcategoryCard: React.FC<{
     </View>
   </TouchableOpacity>
 );
+
+const DocumentCard: React.FC<{
+  document: Document;
+  onDownload: () => void;
+}> = ({ document, onDownload }) => {
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  return (
+    <View style={styles.documentCard}>
+      <View style={styles.documentHeader}>
+        <Icon name="document-text" size={24} color="#667eea" />
+        <Text style={styles.documentTitle} numberOfLines={2}>{document.title}</Text>
+      </View>
+      
+      <View style={styles.documentInfo}>
+        <Text style={styles.documentInfoText}>Tác giả: {document.author}</Text>
+        <Text style={styles.documentInfoText}>Tải lên: {formatDate(document.uploadedAt)}</Text>
+        <Text style={styles.documentInfoText}>Kích thước: {formatFileSize(document.fileSize)}</Text>
+      </View>
+      
+      <TouchableOpacity style={styles.downloadButton} onPress={onDownload}>
+        <Icon name="download" size={16} color="white" />
+        <Text style={styles.downloadButtonText}>Tải xuống</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const AnimatedDrawer: React.FC<{
   isVisible: boolean;
@@ -369,7 +488,7 @@ const AnimatedDrawer: React.FC<{
             <Text style={styles.drawerSubtitle}>Digital Archives</Text>
             <View style={styles.userInfo}>
               <Icon name="user" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.userInfoText}>{user.name} - {user.role}</Text>
+              <Text style={styles.userInfoText}>{user.name}</Text>
             </View>
           </View>
           
@@ -393,13 +512,13 @@ const AnimatedDrawer: React.FC<{
                     <Icon 
                       name={item.icon} 
                       size={20} 
-                      color={item.id === 'exit' ? '#ff4757' : '#64748b'} 
+                      color={item.id === 'logout' ? '#ff4757' : '#64748b'} 
                     />
                   )}
                   <Text 
                     style={[
                       styles.drawerItemText,
-                      item.id === 'exit' && { color: '#ff4757' }
+                      item.id === 'logout' && { color: '#ff4757' }
                     ]}
                   >
                     {item.title}
@@ -487,10 +606,13 @@ const UploadModal: React.FC<{
   category: string;
   subcategory?: string;
   user: User;
-}> = ({ isVisible, onClose, category, subcategory, user }) => {
+  onUploadSuccess: () => void;
+}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [authorName, setAuthorName] = useState('');
   
   const pickDocument = async () => {
     try {
@@ -500,7 +622,9 @@ const UploadModal: React.FC<{
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedFile(result.assets[0]);
+        const file = result.assets[0];
+        setSelectedFile(file);
+        setDocumentTitle(file.name.replace(/\.[^/.]+$/, "")); // Remove file extension
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể chọn tệp');
@@ -513,34 +637,106 @@ const UploadModal: React.FC<{
       return;
     }
 
+    if (!documentTitle.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên tài liệu');
+      return;
+    }
+
+    if (!authorName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên tác giả');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
 
-    // Simulate file upload with progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploading(false);
-          Alert.alert(
-            'Thành công', 
-            'Tài liệu đã được tải lên thành công!',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setSelectedFile(null);
-                  setUploadProgress(0);
-                  onClose();
-                }
-              }
-            ]
-          );
-          return 100;
-        }
-        return prev + Math.random() * 15;
-      });
-    }, 200);
+    try {
+      // Upload file to Supabase Storage
+      const keyNameCategory = categories.find(cat => cat.title === category)?.keyName;
+      const keyNameSubCategory = documentSubcategories.find(cat => cat.title === subcategory)?.keyName;
+      console.log(`Selected sub category: ${keyNameSubCategory}`);
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${keyNameCategory}/${keyNameSubCategory || 'general'}/${fileName}`;
+
+      // Create FormData for file upload
+      const formData = new FormData();
+      formData.append('file', {
+        uri: selectedFile.uri,
+        type: selectedFile.mimeType,
+        name: selectedFile.name,
+      } as any);
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress((prev) => Math.min(prev + 10, 90));
+      }, 200);
+
+      console.log(selectedFile.type);
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(filePath, selectedFile, {
+          contentType: selectedFile.type,
+          upsert: true,
+        });
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+      console.log(`File path: ${filePath}`);
+      if (uploadError) {
+        console.log(`Upload error: ${uploadError}`);
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('documents')
+        .getPublicUrl(filePath);
+
+      console.log(`URL data: ${urlData}`);
+      // Save document metadata to database
+      const { error: dbError } = await supabase
+        .from('documents')
+        .insert({
+          title: documentTitle,
+          filename: selectedFile.name,
+          author: authorName,
+          category: keyNameCategory,
+          subcategory: keyNameSubCategory || null,
+          file_url: urlData.publicUrl,
+          file_size: selectedFile.size || 0,
+          file_type: selectedFile.mimeType || 'application/octet-stream',
+        });
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      setUploading(false);
+      Alert.alert(
+        'Thành công', 
+        'Tài liệu đã được tải lên thành công!',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setSelectedFile(null);
+              setDocumentTitle('');
+              setAuthorName('');
+              setUploadProgress(0);
+              onUploadSuccess();
+              onClose();
+            }
+          }
+        ]
+      );
+
+    } catch (error) {
+      setUploading(false);
+      setUploadProgress(0);
+      Alert.alert('Lỗi ' + error, 'Có lỗi xảy ra trong quá trình tải lên tài liệu');
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -559,98 +755,120 @@ const UploadModal: React.FC<{
       onRequestClose={onClose}
     >
       <View style={styles.uploadModalOverlay}>
-        <View style={styles.uploadModalContent}>
-          <View style={styles.uploadHeader}>
-            <Text style={styles.uploadTitle}>Tải lên tài liệu</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.uploadInfo}>
-            <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
-            <Text style={styles.uploadInfoValue}>
-              {category} {subcategory && subcategory != category && `> ${subcategory}`}
-            </Text>
-          </View>
-
-          <View style={styles.uploaderInfo}>
-            <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
-            <Text style={styles.uploadInfoValue}>{user.name}</Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.filePickerButton}
-            onPress={pickDocument}
-            disabled={uploading}
-          >
-            <Icon name="folder" size={20} color="#667eea" />
-            <Text style={styles.filePickerText}>
-              {selectedFile ? 'Chọn tệp khác' : 'Chọn tệp từ máy'}
-            </Text>
-          </TouchableOpacity>
-
-          {selectedFile && (
-            <View style={styles.selectedFileInfo}>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
-                <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
-              </View>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Kích thước:</Text>
-                <Text style={styles.fileInfoValue}>
-                  {selectedFile.size ? formatFileSize(selectedFile.size) : 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
-                <Text style={styles.fileInfoValue}>
-                  {selectedFile.mimeType || 'N/A'}
-                </Text>
-              </View>
+        <ScrollView contentContainerStyle={styles.uploadModalContainer}>
+          <View style={styles.uploadModalContent}>
+            <View style={styles.uploadHeader}>
+              <Text style={styles.uploadTitle}>Tải lên tài liệu</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Icon name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
             </View>
-          )}
-
-          {uploading && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${uploadProgress}%` }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.progressText}>
-                {Math.round(uploadProgress)}% - Đang tải lên...
+            
+            <View style={styles.uploadInfo}>
+              <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
+              <Text style={styles.uploadInfoValue}>
+                {category} {subcategory && subcategory !== category && `> ${subcategory}`}
               </Text>
             </View>
-          )}
-          
-          <TouchableOpacity 
-            style={[
-              styles.uploadButton,
-              (!selectedFile || uploading) && styles.uploadButtonDisabled
-            ]}
-            onPress={handleUpload}
-            disabled={!selectedFile || uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <>
-                <Icon name="upload" size={20} color="white" />
-                <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
-              </>
+
+            <View style={styles.uploaderInfo}>
+              <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
+              <Text style={styles.uploadInfoValue}>{user.name}</Text>
+            </View>
+
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Tên tài liệu *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Nhập tên tài liệu"
+                value={documentTitle}
+                onChangeText={setDocumentTitle}
+              />
+            </View>
+
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Tác giả *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Nhập tên tác giả"
+                value={authorName}
+                onChangeText={setAuthorName}
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.filePickerButton}
+              onPress={pickDocument}
+              disabled={uploading}
+            >
+              <Icon name="folder" size={20} color="#667eea" />
+              <Text style={styles.filePickerText}>
+                {selectedFile ? 'Chọn tệp khác' : 'Chọn tệp từ máy'}
+              </Text>
+            </TouchableOpacity>
+
+            {selectedFile && (
+              <View style={styles.selectedFileInfo}>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
+                  <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
+                </View>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Kích thước:</Text>
+                  <Text style={styles.fileInfoValue}>
+                    {selectedFile.size ? formatFileSize(selectedFile.size) : 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
+                  <Text style={styles.fileInfoValue}>
+                    {selectedFile.mimeType || 'N/A'}
+                  </Text>
+                </View>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
+
+            {uploading && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${uploadProgress}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {Math.round(uploadProgress)}% - Đang tải lên...
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity 
+              style={[
+                styles.uploadButton,
+                (!selectedFile || !documentTitle.trim() || !authorName.trim() || uploading) && styles.uploadButtonDisabled
+              ]}
+              onPress={handleUpload}
+              disabled={!selectedFile || !documentTitle.trim() || !authorName.trim() || uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <>
+                  <Icon name="upload" size={20} color="white" />
+                  <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
 };
 
-export default function EnhancedDigitalArchivesV2() {
+export default function EnhancedDigitalArchivesV3() {
   const [user, setUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -658,24 +876,100 @@ export default function EnhancedDigitalArchivesV2() {
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [currentView, setCurrentView] = useState<'home' | 'category' | 'subcategory'>('home');
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
       { text: 'Hủy', style: 'cancel' },
       { 
         text: 'Đăng xuất', 
-        onPress: () => {
-          setUser(null);
-          setSelectedCategory(null);
-          setSelectedSubcategory(null);
-          setCurrentView('home');
+        onPress: async () => {
+          try {
+            // Clear stored session
+            await SecureStore.deleteItemAsync('userToken');
+            await SecureStore.deleteItemAsync('userData');
+            
+            // Reset app state
+            setUser(null);
+            setSelectedCategory(null);
+            setSelectedSubcategory(null);
+            setCurrentView('home');
+            setDocuments([]);
+          } catch (error) {
+            console.log('Error during logout:', error);
+          }
         }
       }
     ]);
+  };
+
+  const loadDocuments = async (categoryId: string, subcategoryId?: string) => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('documents')
+        .select(`
+          id,
+          title,
+          filename,
+          author,
+          category,
+          subcategory,
+          created_at,
+          file_url,
+          file_size,
+          file_type
+        `)
+        .eq('category', categoryId);
+
+      if (subcategoryId) {
+        query = query.eq('subcategory', subcategoryId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
+
+      if (error) {
+        throw error;
+      }
+
+      const formattedDocuments: Document[] = (data || []).map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        filename: doc.filename,
+        author: doc.author,
+        category: doc.category,
+        subcategory: doc.subcategory,
+        uploadedAt: doc.created_at,
+        fileUrl: doc.file_url,
+        fileSize: doc.file_size,
+        fileType: doc.file_type,
+      }));
+
+      setDocuments(formattedDocuments);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      setDocuments([]);
+    }
+    setLoading(false);
+  };
+
+  const handleDownloadDocument = async (document: Document) => {
+    try {
+      // For web, open in new tab
+      if (Platform.OS === 'web') {
+        window.open(document.fileUrl, '_blank');
+      } else {
+        // For mobile, you would typically use expo-file-system or similar
+        Alert.alert('Tải xuống', `Đang tải xuống: ${document.title}`);
+      }
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể tải xuống tệp');
+    }
   };
 
   if (!user) {
@@ -687,24 +981,27 @@ export default function EnhancedDigitalArchivesV2() {
     setSelectedCategory(categoryId);
     
     const category = categories.find(cat => cat.id === categoryId);
-    if (category != undefined && !category?.hasSubcategories) {
+    if (category && !category?.hasSubcategories) {
       setCurrentView('subcategory');
-      // For categories without subcategories, create a virtual subcategory
       setSelectedSubcategory({
         id: `${categoryId}-main`,
         title: category.title,
         icon: category.icon,
         description: category.description,
         parentId: categoryId,
+        keyName: category.keyName,
       });
-    } else if (category != undefined) {
+      loadDocuments(categoryId);
+    } else if (category) {
       setCurrentView('category');
     }
   };
 
   const handleSubcategoryPress = (subcategory: SubcategoryItem) => {
+    console.log(`Selected sub category: ${subcategory.title}`);
     setSelectedSubcategory(subcategory);
     setCurrentView('subcategory');
+    loadDocuments(subcategory.parentId, subcategory.title);
   };
 
   const handleDrawerItemPress = (itemId: string) => {
@@ -716,14 +1013,12 @@ export default function EnhancedDigitalArchivesV2() {
         setSelectedCategory(null);
         setSelectedSubcategory(null);
         setCurrentView('home');
+        setDocuments([]);
         break;
       case 'settings':
         Alert.alert('Cài đặt', 'Chức năng đang phát triển');
         break;
-      case 'more':
-        Alert.alert('Thêm', 'Chức năng bổ sung');
-        break;
-      case 'exit':
+      case 'logout':
         handleLogout();
         break;
       default:
@@ -741,14 +1036,17 @@ export default function EnhancedDigitalArchivesV2() {
       if (category?.hasSubcategories) {
         setCurrentView('category');
         setSelectedSubcategory(null);
+        setDocuments([]);
       } else {
         setCurrentView('home');
         setSelectedCategory(null);
         setSelectedSubcategory(null);
+        setDocuments([]);
       }
     } else if (currentView === 'category') {
       setCurrentView('home');
       setSelectedCategory(null);
+      setDocuments([]);
     }
   };
 
@@ -762,9 +1060,17 @@ export default function EnhancedDigitalArchivesV2() {
   };
 
   const canUpload = () => {
-    if (currentView === 'home') return false;
-    const category = categories.find(cat => cat.id === selectedCategory);
-    return category?.allowUpload || false;
+    return user.username === 'bantuyenhuan' && currentView !== 'home';
+  };
+
+  const handleUploadSuccess = () => {
+    // Reload documents after successful upload
+    if (selectedCategory) {
+      const subcategoryTitle = selectedSubcategory && selectedSubcategory.title !== getCurrentCategory() 
+        ? selectedSubcategory.title 
+        : undefined;
+      loadDocuments(selectedCategory, subcategoryTitle);
+    }
   };
 
   const renderHomeView = () => (
@@ -818,7 +1124,7 @@ export default function EnhancedDigitalArchivesV2() {
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Icon name="folder" size={32} color="#667eea" />
-            <Text style={styles.statNumber}>8</Text>
+            <Text style={styles.statNumber}>{categories.length}</Text>
             <Text style={styles.statLabel}>Danh mục</Text>
           </View>
           <View style={styles.statCard}>
@@ -893,7 +1199,25 @@ export default function EnhancedDigitalArchivesV2() {
       
       <View style={styles.documentsContainer}>
         <Text style={styles.documentsTitle}>Tài liệu trong danh mục</Text>
-        <Text style={styles.documentsPlaceholder}>Chưa có tài liệu nào</Text>
+        
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#667eea" />
+            <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
+          </View>
+        ) : documents.length > 0 ? (
+          <View style={styles.documentsGrid}>
+            {documents.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onDownload={() => handleDownloadDocument(doc)}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.documentsPlaceholder}>Chưa có tài liệu nào</Text>
+        )}
       </View>
     </ScrollView>
   );
@@ -944,14 +1268,17 @@ export default function EnhancedDigitalArchivesV2() {
         onClose={() => setIsSearchModalOpen(false)}
       />
 
-      {/* Upload Modal */}
-      <UploadModal
-        isVisible={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
-        category={getCurrentCategory()}
-        subcategory={getCurrentSubcategory()}
-        user={user}
-      />
+      {/* Upload Modal - Only for bantuyenhuan */}
+      {canUpload() && (
+        <UploadModal
+          isVisible={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          category={getCurrentCategory()}
+          subcategory={getCurrentSubcategory()}
+          user={user}
+          onUploadSuccess={handleUploadSuccess}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -1374,13 +1701,70 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#1e293b',
-    marginBottom: 10,
+    marginBottom: 15,
   },
   documentsPlaceholder: {
     fontSize: 14,
     color: '#64748b',
     textAlign: 'center',
     paddingVertical: 30,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 10,
+  },
+  documentsGrid: {
+    gap: 15,
+  },
+  // Document Card Styles
+  documentCard: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#667eea',
+  },
+  documentHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  documentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginLeft: 10,
+    flex: 1,
+  },
+  documentInfo: {
+    marginBottom: 12,
+  },
+  documentInfoText: {
+    fontSize: 13,
+    color: '#64748b',
+    marginBottom: 3,
+  },
+  downloadButton: {
+    backgroundColor: '#667eea',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  downloadButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 5,
   },
   // Drawer Styles
   modalOverlay: {
@@ -1532,13 +1916,18 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
+  },
+  uploadModalContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
     paddingHorizontal: 20,
+    paddingVertical: 20,
   },
   uploadModalContent: {
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
-    maxHeight: '80%',
+    maxHeight: '90%',
   },
   uploadHeader: {
     flexDirection: 'row',
@@ -1572,6 +1961,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 15,
     marginBottom: 20,
+  },
+  inputSection: {
+    marginBottom: 15,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  textInput: {
+    backgroundColor: '#f8fafc',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    fontSize: 16,
+    color: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
   },
   filePickerButton: {
     backgroundColor: '#f8fafc',
