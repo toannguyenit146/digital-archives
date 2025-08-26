@@ -1,20 +1,20 @@
-import React, { useRef, useState, useEffect } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
+import React, { useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Dimensions,
   Modal,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
-  ActivityIndicator,
-  Platform
+  View
 } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,7 +24,7 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
   size = 20, 
   color = '#000' 
 }) => {
-  const iconMap: { [key: string]: string } = {
+    const iconMap: { [key: string]: string } = {
     'menu': '☰',
     'search': '🔍',
     'notifications': '🔔',
@@ -58,6 +58,13 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
     'lock': '🔒',
     'eye': '👁',
     'eye-off': '🙈',
+    'image': '🖼️',
+    'video': '🎥',
+    'download': '⬇️',
+    'edit': '✏️',
+    'training': '🎯',
+    'party': '🏛️',
+    'logout': '🚪',
   };
 
   const iconChar = iconMap[name] || '•';
@@ -129,10 +136,10 @@ const categories: CategoryItem[] = [
   },
   {
     id: '5',
-    title: 'ĐTB, ĐVM',
+    title: 'ĐTĐ, ĐVM',
     color: '#9013FE',
     icon: 'medal',
-    description: 'Đảng viên và đoàn viên',
+    description: 'Đối tượng đảng, đảng viên mới',
     allowUpload: true,
   },
   {
@@ -171,6 +178,8 @@ const documentSubcategories: SubcategoryItem[] = [
   { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1' },
   { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1' },
   { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1' },
+  { id: '1-10', title: 'Hình ảnh', icon: 'image', description: 'Tài liệu hình ảnh', parentId: '1'},
+  { id: '1-11', title: 'Video', icon: 'video', description: 'Tài liệu video', parentId: '1'},
 ];
 
 // Mock user database
@@ -286,7 +295,7 @@ const menuItems = [
   { id: 'separator2', title: '--- Khác ---', icon: null },
   { id: 'more', title: 'Thêm', icon: 'ellipsis-horizontal' },
   { id: 'settings', title: 'Cài đặt', icon: 'settings' },
-  { id: 'exit', title: 'Thoát', icon: 'exit' },
+  { id: 'logout', title: 'Đăng xuất', icon: 'logout' }, // <-- changed id + title + icon
 ];
 
 const CategoryCard: React.FC<{
@@ -393,13 +402,13 @@ const AnimatedDrawer: React.FC<{
                     <Icon 
                       name={item.icon} 
                       size={20} 
-                      color={item.id === 'exit' ? '#ff4757' : '#64748b'} 
+                      color={item.id === 'logout' ? '#ff4757' : '#64748b'} 
                     />
                   )}
                   <Text 
                     style={[
                       styles.drawerItemText,
-                      item.id === 'exit' && { color: '#ff4757' }
+                      item.id === 'logout' && { color: '#ff4757' } // <-- update color check
                     ]}
                   >
                     {item.title}
@@ -664,19 +673,23 @@ export default function EnhancedDigitalArchivesV2() {
   };
 
   const handleLogout = () => {
-    Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
-      { text: 'Hủy', style: 'cancel' },
-      { 
-        text: 'Đăng xuất', 
-        onPress: () => {
-          setUser(null);
-          setSelectedCategory(null);
-          setSelectedSubcategory(null);
-          setCurrentView('home');
-        }
-      }
-    ]);
-  };
+  Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
+    { text: 'Hủy', style: 'cancel' },
+    {
+      text: 'Đăng xuất',
+      onPress: () => {
+        // Đóng các modal/ngăn kéo còn mở rồi reset user để về màn đăng nhập
+        setIsDrawerOpen(false);
+        setIsSearchModalOpen(false);
+        setIsUploadModalOpen(false);
+        setUser(null);
+        setSelectedCategory(null);
+        setSelectedSubcategory(null);
+        setCurrentView('home');
+      },
+    },
+  ]);
+};
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -708,32 +721,32 @@ export default function EnhancedDigitalArchivesV2() {
   };
 
   const handleDrawerItemPress = (itemId: string) => {
-    console.log(`Drawer item pressed: ${itemId}`);
-    setIsDrawerOpen(false);
-    
-    switch (itemId) {
-      case 'home':
-        setSelectedCategory(null);
-        setSelectedSubcategory(null);
-        setCurrentView('home');
-        break;
-      case 'settings':
-        Alert.alert('Cài đặt', 'Chức năng đang phát triển');
-        break;
-      case 'more':
-        Alert.alert('Thêm', 'Chức năng bổ sung');
-        break;
-      case 'exit':
-        handleLogout();
-        break;
-      default:
-        const category = categories.find(cat => cat.id === itemId);
-        if (category) {
-          handleCategoryPress(itemId, category.title);
-        }
-        break;
-    }
-  };
+  console.log(`Drawer item pressed: ${itemId}`);
+  setIsDrawerOpen(false);
+  
+  switch (itemId) {
+    case 'home':
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setCurrentView('home');
+      break;
+    case 'settings':
+      Alert.alert('Cài đặt', 'Chức năng đang phát triển');
+      break;
+    case 'more':
+      Alert.alert('Thêm', 'Chức năng bổ sung');
+      break;
+    case 'logout': // <-- updated case to match new id
+      handleLogout();
+      break;
+    default:
+      const category = categories.find(cat => cat.id === itemId);
+      if (category) {
+        handleCategoryPress(itemId, category.title);
+      }
+      break;
+  }
+};
 
   const handleBackPress = () => {
     if (currentView === 'subcategory') {
