@@ -1,5 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
-import React, { useRef, useState } from 'react';
+import * as SecureStore from 'expo-secure-store';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +18,10 @@ import {
 } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
+
+// API Configuration - Change this to your backend server URL
+const API_BASE_URL = 'http://192.168.0.109:3000/api'; // For development
+// const API_BASE_URL = 'http://YOUR_SERVER_IP:3000/api'; // For production
 
 // Icon component that works across all platforms
 const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({ 
@@ -76,6 +81,124 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
   );
 };
 
+// API Helper functions
+class ApiService {
+  static async makeRequest(endpoint: string, options = {}) {
+    try {
+      const token = await SecureStore.getItemAsync('authToken');
+      const config = {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...options.headers
+        },
+        ...options
+      };
+      console.log('Fetch Config:', config);
+      console.log('Fetching from:', `${API_BASE_URL}${endpoint}`);
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Network error');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('API Request Error:', error);
+      throw error;
+    }
+  }
+
+  static async login(username: string, password: string) {
+    try {
+      console.log('Login Payload:', { username, password });
+      console.log('Logging in to:', `${API_BASE_URL}/auth/login`);
+      console.log('Parse: ' + JSON.stringify({ username, password }));
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      console.log('Login Response Status:', response.status);
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      // ✅ Lưu token lại
+      if (data.token) {
+        await SecureStore.setItemAsync("authToken", data.token);
+      }
+
+      return data;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error;
+    }
+  }
+
+  static async getDocuments(category, subcategory, page = 1, limit = 20) {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+    
+    if (category) params.append('category', category);
+    if (subcategory) params.append('subcategory', subcategory);
+
+    return this.makeRequest(`/documents?${params.toString()}`);
+  }
+
+  static async uploadDocument(formData) {
+    const token = await SecureStore.getItemAsync('authToken');
+    
+    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        // Don't set Content-Type for FormData, let the browser set it
+      },
+      body: formData
+    });
+
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Upload failed');
+    }
+
+    return data;
+  }
+
+  static async downloadDocument(documentId) {
+    const token = await SecureStore.getItemAsync('authToken');
+    
+    const response = await fetch(`${API_BASE_URL}/documents/${documentId}/download`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Download failed');
+    }
+
+    return response;
+  }
+
+  static async searchDocuments(query, category, subcategory) {
+    const params = new URLSearchParams({ query });
+    if (category) params.append('category', category);
+    if (subcategory) params.append('subcategory', subcategory);
+
+    return this.makeRequest(`/documents/search?${params.toString()}`);
+  }
+}
+
+// Interfaces
 interface CategoryItem {
   id: string;
   title: string;
@@ -84,6 +207,7 @@ interface CategoryItem {
   description: string;
   hasSubcategories?: boolean;
   allowUpload?: boolean;
+  keyName: string;
 }
 
 interface SubcategoryItem {
@@ -92,12 +216,28 @@ interface SubcategoryItem {
   icon: string;
   description: string;
   parentId: string;
+  keyName: string;
 }
 
 interface User {
+  id: string;
   username: string;
   name: string;
-  role: string;
+  role?: string;
+}
+
+interface Document {
+  id: string;
+  title: string;
+  filename: string;
+  author: string;
+  category: string;
+  subcategory?: string;
+  created_at: string;
+  file_url: string;
+  file_size: number;
+  file_type: string;
+  uploader_name?: string;
 }
 
 const categories: CategoryItem[] = [
@@ -109,6 +249,7 @@ const categories: CategoryItem[] = [
     description: 'Quản lý và truy cập tài liệu',
     hasSubcategories: true,
     allowUpload: true,
+    keyName: "tailieu",
   },
   {
     id: '2',
@@ -117,6 +258,7 @@ const categories: CategoryItem[] = [
     icon: 'school',
     description: 'Kiến thức cần thiết thường xuyên',
     allowUpload: true,
+    keyName: "kienthucthuongtruc",
   },
   {
     id: '3',
@@ -125,69 +267,84 @@ const categories: CategoryItem[] = [
     icon: 'people',
     description: 'Thông tin sĩ quan, quân nhân chuyên nghiệp',
     allowUpload: true,
+    keyName: "doituongsqvaqncn",
   },
   {
     id: '4',
+    title: 'Đối tượng HLTPĐ',
+    color: '#FF6B6B',
+    icon: 'training',
+    description: 'HSQ, BS thay phiên đảo',
+    allowUpload: true,
+    keyName: "doituonghltpd",
+  },
+  {
+    id: '5',
     title: 'Đối tượng HSQ, BS',
     color: '#D0021B',
     icon: 'shield',
     description: 'Hạ sĩ quan và binh sĩ',
     allowUpload: true,
-  },
-  {
-    id: '5',
-    title: 'ĐTĐ, ĐVM',
-    color: '#9013FE',
-    icon: 'medal',
-    description: 'Đối tượng đảng, đảng viên mới',
-    allowUpload: true,
+    keyName: "hasiquanvabinhsi",
   },
   {
     id: '6',
+    title: 'ĐTĐ, ĐVM',
+    color: '#9013FE',
+    icon: 'party',
+    description: 'Đảng viên và đảng viên mới',
+    allowUpload: true,
+    keyName: "dangvienvadangvienmoi",
+  },
+  {
+    id: '7',
     title: 'Đối tượng Đoàn viên',
     color: '#50E3C2',
     icon: 'ribbon',
     description: 'Thông tin về đoàn viên',
     allowUpload: true,
+    keyName: "doituongdoanvien",
   },
   {
-    id: '7',
+    id: '8',
     title: 'Cấu hỏi kiến thức GDCT',
     color: '#B8E986',
     icon: 'help-circle',
     description: 'Câu hỏi giáo dục chính trị',
     allowUpload: true,
+    keyName: "cauhoikienthucgdct",
   },
   {
-    id: '8',
+    id: '9',
     title: 'Cấu hỏi kiến thức pháp luật',
     color: '#4BD5EA',
     icon: 'library',
     description: 'Câu hỏi về pháp luật',
     allowUpload: true,
+    keyName: "cauhoikienthucphapluat",
   },
 ];
 
 const documentSubcategories: SubcategoryItem[] = [
-  { id: '1-1', title: 'Lịch sử', icon: 'history', description: 'Tài liệu lịch sử', parentId: '1' },
-  { id: '1-2', title: 'Nghị quyết', icon: 'resolution', description: 'Nghị quyết và quyết định', parentId: '1' },
-  { id: '1-3', title: 'Khoa học', icon: 'science', description: 'Tài liệu khoa học kỹ thuật', parentId: '1' },
-  { id: '1-4', title: 'Kinh tế - Xã hội', icon: 'economics', description: 'Tài liệu kinh tế xã hội', parentId: '1' },
-  { id: '1-5', title: 'Quân sự - Quốc phòng', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1' },
-  { id: '1-6', title: 'Văn hóa', icon: 'culture', description: 'Tài liệu văn hóa', parentId: '1' },
-  { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1' },
-  { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1' },
-  { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1' },
-  { id: '1-10', title: 'Hình ảnh', icon: 'image', description: 'Tài liệu hình ảnh', parentId: '1'},
-  { id: '1-11', title: 'Video', icon: 'video', description: 'Tài liệu video', parentId: '1'},
+  { id: '1-1', title: 'Lịch sử', icon: 'history', description: 'Tài liệu lịch sử', parentId: '1', keyName: 'lichsu'},
+  { id: '1-2', title: 'Nghị quyết', icon: 'resolution', description: 'Nghị quyết và quyết định', parentId: '1', keyName: 'nghiquyet'},
+  { id: '1-3', title: 'Khoa học', icon: 'science', description: 'Tài liệu khoa học kỹ thuật', parentId: '1', keyName: 'khoahoc' },
+  { id: '1-4', title: 'Kinh tế - Xã hội', icon: 'economics', description: 'Tài liệu kinh tế xã hội', parentId: '1', keyName: 'kt-xh' },
+  { id: '1-5', title: 'Quân sự - Quốc phòng', icon: 'qs-qp', description: 'Quân sự - Quốc phòng', parentId: '1', keyName: 'quansuvaquocphong' },
+  { id: '1-6', title: 'Văn hóa', icon: 'culture', description: 'Tài liệu văn hóa', parentId: '1', keyName: 'vanhoa' },
+  { id: '1-7', title: 'Pháp luật', icon: 'law', description: 'Văn bản pháp luật', parentId: '1', keyName: 'phapluat' },
+  { id: '1-8', title: 'Nghị định', icon: 'decree', description: 'Nghị định của Chính phủ', parentId: '1', keyName: 'nghidinh' },
+  { id: '1-9', title: 'Thông tư', icon: 'circular', description: 'Thông tư hướng dẫn', parentId: '1', keyName: 'thongtu' },
+  { id: '1-10', title: 'Hình ảnh', icon: 'image', description: 'Tài liệu hình ảnh', parentId: '1', keyName: 'hinhanh' },
+  { id: '1-11', title: 'Video', icon: 'video', description: 'Tài liệu video', parentId: '1', keyName: 'video' },
 ];
 
 // Mock user database
-const mockUsers = [
-  { username: 'admin', password: '123456', name: 'Quản trị viên', role: 'Administrator' },
-  { username: 'hoangocanh', password: '12346789', name: 'Hoa Ngọc Ánh', role: 'TL THc' },
-  { username: 'nhtt', password: '18082002', name: 'Nguyễn Huỳnh Thanh Toàn', role: 'Programmer' },
-];
+// const mockUsers = [
+//   { username: 'admin', password: '123456', name: 'Quản trị viên', role: 'Administrator' },
+//   { username: 'hoangocanh', password: '12346789', name: 'Hoa Ngọc Ánh', role: 'TL THc' },
+//   { username: 'nhtt', password: '18082002', name: 'Nguyễn Huỳnh Thanh Toàn', role: 'Programmer' },
+// ];
 
 const LoginScreen: React.FC<{
   onLogin: (user: User) => void;
@@ -197,30 +354,49 @@ const LoginScreen: React.FC<{
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+useEffect(() => {
+    checkExistingSession();
+  }, []);
+
+  const checkExistingSession = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('authToken');
+      const userData = await SecureStore.getItemAsync('userData');
+      
+      if (token && userData) {
+        const user = JSON.parse(userData);
+        onLogin(user);
+      }
+    } catch (error) {
+      console.log('No existing session');
+    }
+  };
+
   const handleLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin');
+      Alert.alert('Lỗi', 'Vui lòng nhập đầy đủ thông tin đăng nhập');
       return;
     }
 
     setLoading(true);
 
-    // Simulate network delay
-    setTimeout(() => {
-      const user = mockUsers.find(u => u.username === username && u.password === password);
+    try {
+      const response = await ApiService.login(username.trim(), password.trim());
       
-      setLoading(false);
-      
-      if (user) {
-        onLogin({
-          username: user.username,
-          name: user.name,
-          role: user.role,
-        });
+      if (response.success) {
+        // Store session
+        await SecureStore.setItemAsync('authToken', response.token);
+        await SecureStore.setItemAsync('userData', JSON.stringify(response.user));
+
+        onLogin(response.user);
       } else {
         Alert.alert('Lỗi đăng nhập', 'Tên đăng nhập hoặc mật khẩu không đúng');
       }
-    }, 1500);
+    } catch (error) {
+      Alert.alert('Lỗi đăng nhập', error.message || 'Có lỗi xảy ra trong quá trình đăng nhập');
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -275,7 +451,7 @@ const LoginScreen: React.FC<{
 
           <View style={styles.demoCredentials}>
             <Text style={styles.demoTitle}>Tài khoản demo:</Text>
-            <Text style={styles.demoText}>admin / 123456</Text>
+            <Text style={styles.demoText}>bantuyenhuan / 12346789</Text>
           </View>
         </View>
       </View>
@@ -293,9 +469,8 @@ const menuItems = [
     isCategory: true 
   })),
   { id: 'separator2', title: '--- Khác ---', icon: null },
-  { id: 'more', title: 'Thêm', icon: 'ellipsis-horizontal' },
   { id: 'settings', title: 'Cài đặt', icon: 'settings' },
-  { id: 'logout', title: 'Đăng xuất', icon: 'logout' }, // <-- changed id + title + icon
+  { id: 'logout', title: 'Đăng xuất', icon: 'logout' },
 ];
 
 const CategoryCard: React.FC<{
@@ -329,6 +504,47 @@ const SubcategoryCard: React.FC<{
     </View>
   </TouchableOpacity>
 );
+
+const DocumentCard: React.FC<{
+  document: Document;
+  onDownload: () => void;
+}> = ({ document, onDownload }) => {
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('vi-VN');
+  };
+
+  return (
+    <View style={styles.documentCard}>
+      <View style={styles.documentHeader}>
+        <Icon name="document-text" size={24} color="#667eea" />
+        <Text style={styles.documentTitle} numberOfLines={2}>{document.title}</Text>
+      </View>
+      
+      <View style={styles.documentInfo}>
+        <Text style={styles.documentInfoText}>Tác giả: {document.author}</Text>
+        <Text style={styles.documentInfoText}>Tải lên: {formatDate(document.created_at)}</Text>
+        <Text style={styles.documentInfoText}>Kích thước: {formatFileSize(document.file_size)}</Text>
+        {document.uploader_name && (
+          <Text style={styles.documentInfoText}>Người tải: {document.uploader_name}</Text>
+        )}
+      </View>
+      
+      <TouchableOpacity style={styles.downloadButton} onPress={onDownload}>
+        <Icon name="download" size={16} color="white" />
+        <Text style={styles.downloadButtonText}>Tải xuống</Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 const AnimatedDrawer: React.FC<{
   isVisible: boolean;
@@ -378,7 +594,7 @@ const AnimatedDrawer: React.FC<{
             <Text style={styles.drawerSubtitle}>Digital Archives</Text>
             <View style={styles.userInfo}>
               <Icon name="user" size={16} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.userInfoText}>{user.name} - {user.role}</Text>
+              <Text style={styles.userInfoText}>{user.name}</Text>
             </View>
           </View>
           
@@ -408,7 +624,7 @@ const AnimatedDrawer: React.FC<{
                   <Text 
                     style={[
                       styles.drawerItemText,
-                      item.id === 'logout' && { color: '#ff4757' } // <-- update color check
+                      item.id === 'logout' && { color: '#ff4757' }
                     ]}
                   >
                     {item.title}
@@ -439,14 +655,14 @@ const AnimatedDrawer: React.FC<{
 const SearchModal: React.FC<{
   isVisible: boolean;
   onClose: () => void;
-}> = ({ isVisible, onClose }) => {
+  onSearch: (query: string) => void;
+}> = ({ isVisible, onClose, onSearch }) => {
   const [searchQuery, setSearchQuery] = useState('');
   
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      Alert.alert('Tìm kiếm', `Đang tìm kiếm: "${searchQuery}"`, [
-        { text: 'OK', onPress: onClose }
-      ]);
+      onSearch(searchQuery.trim());
+      onClose();
     }
   };
 
@@ -496,10 +712,13 @@ const UploadModal: React.FC<{
   category: string;
   subcategory?: string;
   user: User;
-}> = ({ isVisible, onClose, category, subcategory, user }) => {
+  onUploadSuccess: () => void;
+}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess }) => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [documentTitle, setDocumentTitle] = useState('');
+  const [authorName, setAuthorName] = useState('');
   
   const pickDocument = async () => {
     try {
@@ -509,7 +728,9 @@ const UploadModal: React.FC<{
       });
       
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedFile(result.assets[0]);
+        const file = result.assets[0];
+        setSelectedFile(file);
+        setDocumentTitle(file.name.replace(/\.[^/.]+$/, "")); // Remove file extension
       }
     } catch (error) {
       Alert.alert('Lỗi', 'Không thể chọn tệp');
@@ -522,35 +743,72 @@ const UploadModal: React.FC<{
       return;
     }
 
+    if (!documentTitle.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên tài liệu');
+      return;
+    }
+
+    if (!authorName.trim()) {
+      Alert.alert('Lỗi', 'Vui lòng nhập tên tác giả');
+      return;
+    }
+
     setUploading(true);
     setUploadProgress(0);
 
-    // Simulate file upload with progress
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setUploading(false);
-          Alert.alert(
-            'Thành công', 
-            'Tài liệu đã được tải lên thành công!',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  setSelectedFile(null);
-                  setUploadProgress(0);
-                  onClose();
-                }
-              }
-            ]
-          );
-          return 100;
-        }
-        return prev + Math.random() * 15;
-      });
-    }, 200);
-  };
+    try {
+      // Get category/subcategory keys
+      const categoryKey = categories.find(cat => cat.title === category)?.keyName;
+      const subcategoryKey = documentSubcategories.find(sub => sub.title === subcategory)?.keyName;
+
+      // Create FormData
+      const formData = new FormData();
+      formData.append('file', {
+        uri: selectedFile.uri,
+        type: selectedFile.mimeType || 'application/octet-stream',
+        name: selectedFile.name,
+      } as any);
+      formData.append('title', documentTitle);
+      formData.append('author', authorName);
+      formData.append('category', categoryKey || 'general');
+      if (subcategoryKey) {
+        formData.append('subcategory', subcategoryKey);
+      }
+
+      // Simulate progress
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+
+      const response = await ApiService.uploadDocument(formData);
+
+      clearInterval(progressInterval);
+      setUploadProgress(100);
+
+      if (response.success) {
+        setUploading(false);
+        Alert.alert('Thành công', 'Tài liệu đã được tải lên thành công!', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setSelectedFile(null);
+              setDocumentTitle('');
+              setAuthorName('');
+              setUploadProgress(0);
+              onUploadSuccess();
+              onClose();
+            },
+          },
+        ]);
+      } else {
+        throw new Error(response.error || 'Upload failed');
+      }
+    } catch (error) {
+      setUploading(false);
+      setUploadProgress(0);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình tải lên tài liệu:\n' + error.message);
+    }
+  };  
 
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
@@ -568,92 +826,114 @@ const UploadModal: React.FC<{
       onRequestClose={onClose}
     >
       <View style={styles.uploadModalOverlay}>
-        <View style={styles.uploadModalContent}>
-          <View style={styles.uploadHeader}>
-            <Text style={styles.uploadTitle}>Tải lên tài liệu</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Icon name="close" size={24} color="#64748b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.uploadInfo}>
-            <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
-            <Text style={styles.uploadInfoValue}>
-              {category} {subcategory && subcategory != category && `> ${subcategory}`}
-            </Text>
-          </View>
-
-          <View style={styles.uploaderInfo}>
-            <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
-            <Text style={styles.uploadInfoValue}>{user.name}</Text>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.filePickerButton}
-            onPress={pickDocument}
-            disabled={uploading}
-          >
-            <Icon name="folder" size={20} color="#667eea" />
-            <Text style={styles.filePickerText}>
-              {selectedFile ? 'Chọn tệp khác' : 'Chọn tệp từ máy'}
-            </Text>
-          </TouchableOpacity>
-
-          {selectedFile && (
-            <View style={styles.selectedFileInfo}>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
-                <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
-              </View>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Kích thước:</Text>
-                <Text style={styles.fileInfoValue}>
-                  {selectedFile.size ? formatFileSize(selectedFile.size) : 'N/A'}
-                </Text>
-              </View>
-              <View style={styles.fileInfoRow}>
-                <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
-                <Text style={styles.fileInfoValue}>
-                  {selectedFile.mimeType || 'N/A'}
-                </Text>
-              </View>
+        <ScrollView contentContainerStyle={styles.uploadModalContainer}>
+          <View style={styles.uploadModalContent}>
+            <View style={styles.uploadHeader}>
+              <Text style={styles.uploadTitle}>Tải lên tài liệu</Text>
+              <TouchableOpacity onPress={onClose}>
+                <Icon name="close" size={24} color="#64748b" />
+              </TouchableOpacity>
             </View>
-          )}
-
-          {uploading && (
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${uploadProgress}%` }
-                  ]} 
-                />
-              </View>
-              <Text style={styles.progressText}>
-                {Math.round(uploadProgress)}% - Đang tải lên...
+            
+            <View style={styles.uploadInfo}>
+              <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
+              <Text style={styles.uploadInfoValue}>
+                {category} {subcategory && subcategory !== category && `> ${subcategory}`}
               </Text>
             </View>
-          )}
-          
-          <TouchableOpacity 
-            style={[
-              styles.uploadButton,
-              (!selectedFile || uploading) && styles.uploadButtonDisabled
-            ]}
-            onPress={handleUpload}
-            disabled={!selectedFile || uploading}
-          >
-            {uploading ? (
-              <ActivityIndicator size="small" color="white" />
-            ) : (
-              <>
-                <Icon name="upload" size={20} color="white" />
-                <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
-              </>
+
+            <View style={styles.uploaderInfo}>
+              <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
+              <Text style={styles.uploadInfoValue}>{user.name}</Text>
+            </View>
+
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Tên tài liệu *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Nhập tên tài liệu"
+                value={documentTitle}
+                onChangeText={setDocumentTitle}
+              />
+            </View>
+
+            <View style={styles.inputSection}>
+              <Text style={styles.inputLabel}>Tác giả *</Text>
+              <TextInput
+                style={styles.textInput}
+                placeholder="Nhập tên tác giả"
+                value={authorName}
+                onChangeText={setAuthorName}
+              />
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.filePickerButton}
+              onPress={pickDocument}
+              disabled={uploading}
+            >
+              <Icon name="folder" size={20} color="#667eea" />
+              <Text style={styles.filePickerText}>
+                {selectedFile ? 'Chọn tệp khác' : 'Chọn tệp từ máy'}
+              </Text>
+            </TouchableOpacity>
+
+            {selectedFile && (
+              <View style={styles.selectedFileInfo}>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
+                  <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
+                </View>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Kích thước:</Text>
+                  <Text style={styles.fileInfoValue}>
+                    {selectedFile.size ? formatFileSize(selectedFile.size) : 'N/A'}
+                  </Text>
+                </View>
+                <View style={styles.fileInfoRow}>
+                  <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
+                  <Text style={styles.fileInfoValue}>
+                    {selectedFile.mimeType || 'N/A'}
+                  </Text>
+                </View>
+              </View>
             )}
-          </TouchableOpacity>
-        </View>
+
+            {uploading && (
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${uploadProgress}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.progressText}>
+                  {Math.round(uploadProgress)}% - Đang tải lên...
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity 
+              style={[
+                styles.uploadButton,
+                (!selectedFile || !documentTitle.trim() || !authorName.trim() || uploading) && styles.uploadButtonDisabled
+              ]}
+              onPress={handleUpload}
+              disabled={!selectedFile || !documentTitle.trim() || !authorName.trim() || uploading}
+            >
+              {uploading ? (
+                <ActivityIndicator size="small" color="white" />
+              ) : (
+                <>
+                  <Icon name="upload" size={20} color="white" />
+                  <Text style={styles.uploadButtonText}>Tải lên tài liệu</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -666,30 +946,86 @@ export default function EnhancedDigitalArchivesV2() {
   const [selectedSubcategory, setSelectedSubcategory] = useState<SubcategoryItem | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<'home' | 'category' | 'subcategory'>('home');
+  const [currentView, setCurrentView] = useState<'home' | 'category' | 'subcategory' | 'search'>('home');
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<Document[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
   };
 
-  const handleLogout = () => {
-  Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
-    { text: 'Hủy', style: 'cancel' },
-    {
-      text: 'Đăng xuất',
-      onPress: () => {
-        // Đóng các modal/ngăn kéo còn mở rồi reset user để về màn đăng nhập
-        setIsDrawerOpen(false);
-        setIsSearchModalOpen(false);
-        setIsUploadModalOpen(false);
-        setUser(null);
-        setSelectedCategory(null);
-        setSelectedSubcategory(null);
-        setCurrentView('home');
-      },
-    },
-  ]);
-};
+  const handleLogout = async () => {
+    Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
+      { text: 'Hủy', style: 'cancel' },
+      { 
+        text: 'Đăng xuất', 
+        onPress: async () => {
+          try {
+            // Clear stored session
+            await SecureStore.deleteItemAsync('authToken');
+            await SecureStore.deleteItemAsync('userData');
+            
+            // Reset app state
+            setUser(null);
+            setSelectedCategory(null);
+            setSelectedSubcategory(null);
+            setCurrentView('home');
+            setDocuments([]);
+            setSearchResults([]);
+          } catch (error) {
+            console.log('Error during logout:', error);
+          }
+        }
+      }
+    ]);
+  };
+
+  const loadDocuments = async (categoryId: string, subcategoryId?: string) => {
+    setLoading(true);
+    try {
+      const category = categories.find(cat => cat.id === categoryId);
+      const subcategory = documentSubcategories.find(sub => sub.keyName === subcategoryId);
+      
+      const response = await ApiService.getDocuments(
+        category?.keyName, 
+        subcategory?.keyName
+      );
+
+      if (response.success) {
+        setDocuments(response.documents);
+      } else {
+        setDocuments([]);
+      }
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      setDocuments([]);
+      Alert.alert('Lỗi', 'Không thể tải danh sách tài liệu');
+    }
+    setLoading(false);
+  };
+
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    setLoading(true);
+    setCurrentView('search');
+
+    try {
+      const response = await ApiService.searchDocuments(query, undefined, undefined);
+      
+      if (response.success) {
+        setSearchResults(response.documents);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+      Alert.alert('Lỗi', 'Không thể thực hiện tìm kiếm');
+    }
+    setLoading(false);
+  };
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -1626,4 +1962,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
+
 });
