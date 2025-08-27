@@ -47,3 +47,6 @@ expo-debug.log
 
 # Example or test apps
 app-example/
+
+# File uploads
+uploads/
