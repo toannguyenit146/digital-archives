@@ -393,7 +393,7 @@ app.get('/api/documents', authenticateToken, async (req, res) => {
     params.push(parseInt(limit), parseInt(offset));
 
     const [documents] = await db.query(query, params);
-
+    TLogger(query)
     // Get total count for pagination
     let countQuery = 'SELECT COUNT(*) as total FROM documents WHERE 1=1';
     let countParams = [];
@@ -433,7 +433,8 @@ app.get('/api/documents', authenticateToken, async (req, res) => {
         pages: Math.ceil(total / limit)
       }
     });
-
+    TLogger(countQuery)
+    
   } catch (error) {
     console.error('Get documents error:', error);
     res.status(500).json({ error: 'Internal server error' });
