@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
+const TLogger = require('../log/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,7 +40,7 @@ async function initializeDatabase() {
     
     // Test connection
     const connection = await db.getConnection();
-    console.log('✅ Connected to MySQL database successfully');
+    TLogger('✅ Connected to MySQL database successfully');
     connection.release();
     
     // Create tables if they don't exist
@@ -91,7 +92,7 @@ async function createTables() {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    console.log('✅ Database tables created/verified successfully');
+    TLogger('✅ Database tables created/verified successfully');
     
     // Create default admin user if not exists
     await createDefaultUser();
@@ -116,7 +117,7 @@ async function createDefaultUser() {
         'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
         ['bantuyenhuan', hashedPassword, 'Ban Tuyên Huấn', 'admin']
       );
-      console.log('✅ Default admin user created: bantuyenhuan / 12346789');
+      TLogger('✅ Default admin user created: bantuyenhuan / 12346789');
     }
   } catch (error) {
     console.error('❌ Error creating default user:', error);
@@ -128,7 +129,7 @@ function createUploadsDirectory() {
   const uploadsDir = path.join(__dirname, 'uploads');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
-    console.log('✅ Uploads directory created');
+    TLogger('✅ Uploads directory created');
   }
   
   // Create category subdirectories
@@ -167,8 +168,13 @@ const authenticateToken = (req, res, next) => {
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const category = req.body.category || 'general';
-    const subcategory = req.body.subcategory || 'general';
+    // Get from database
+    TLogger('Request body for upload:',);
+    TLogger('File info:', file.destination);
+    
+    // Use category and subcategory from request body to create subdirectories
+    const category = req.params.category || 'general';
+    const subcategory = req.params.subcategory || 'general';
     const uploadPath = path.join(__dirname, 'uploads', category, subcategory);
     
     // Create directory if it doesn't exist
@@ -315,6 +321,7 @@ app.post('/api/documents/upload', authenticateToken, upload.single('file'), asyn
 
     const fileUrl = `/uploads/${category}/${subcategory || 'general'}/${req.file.filename}`;
     const filePath = req.file.path;
+    TLogger('Uploaded file path:', filePath);
 
     // Save document metadata to database
     const [result] = await db.query(`
@@ -658,7 +665,7 @@ async function startServer() {
     createUploadsDirectory();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Digital Archives Server running on port ${PORT}`);
+      TLogger(`🚀 Digital Archives Server running on port ${PORT}`);
       console.log(`📊 API Documentation:`);
       console.log(`   Health: http://192.168.0.109:${PORT}/health`);
       console.log(`   Auth: http://192.168.0.109:${PORT}/api/auth/login`);
@@ -673,19 +680,19 @@ async function startServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('Received SIGTERM, shutting down gracefully');
+  TLogger('Received SIGTERM, shutting down gracefully');
   if (db) {
     await db.end();
-    console.log('Database connection closed');
+    TLogger('Database connection closed');
   }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  console.log('Received SIGINT, shutting down gracefully');
+  TLogger('Received SIGINT, shutting down gracefully');
   if (db) {
     await db.end();
-    console.log('Database connection closed');
+    TLogger('Database connection closed');
   }
   process.exit(0);
 });

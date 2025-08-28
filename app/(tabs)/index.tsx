@@ -94,7 +94,7 @@ class ApiService {
         },
         ...options
       };
-      console.log('Fetch Config:', config);
+      console.log('['+(new Date()).toISOString()+'] '+'Fetch Config:', config);
       console.log('Fetching from:', `${API_BASE_URL}${endpoint}`);
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
       const data = await response.json();
@@ -139,7 +139,7 @@ class ApiService {
     }
   }
 
-  static async getDocuments(category, subcategory, page = 1, limit = 20) {
+  static async getDocuments(category: string | undefined, subcategory: string | undefined, page = 1, limit = 20) {
     const params = new URLSearchParams({
       page: page.toString(),
       limit: limit.toString()
@@ -151,16 +151,21 @@ class ApiService {
     return this.makeRequest(`/documents?${params.toString()}`);
   }
 
-  static async uploadDocument(formData) {
+  static async uploadDocument(formData: FormData) {
+    // Extract category and subcategory from formData
+    const categoryKey = formData.get('category') as string;
+    const subcategoryKey = formData.get('subcategory') as string;
     const token = await SecureStore.getItemAsync('authToken');
-    
-    const response = await fetch(`${API_BASE_URL}/documents/upload`, {
+    console.log("Uploading document with formData:", formData);
+    const url = `${API_BASE_URL}/documents/upload?category=${encodeURIComponent(categoryKey || "general")}&subcategory=${encodeURIComponent(subcategoryKey || "general")}`;
+    console.log('Upload URL:', url);
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
         // Don't set Content-Type for FormData, let the browser set it
       },
-      body: formData
+      body: formData,
     });
 
     const data = await response.json();
@@ -172,7 +177,7 @@ class ApiService {
     return data;
   }
 
-  static async downloadDocument(documentId) {
+  static async downloadDocument(documentId: any) {
     const token = await SecureStore.getItemAsync('authToken');
     
     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/download`, {
@@ -189,7 +194,7 @@ class ApiService {
     return response;
   }
 
-  static async searchDocuments(query, category, subcategory) {
+  static async searchDocuments(query: string, category: string | undefined, subcategory: string | undefined) {
     const params = new URLSearchParams({ query });
     if (category) params.append('category', category);
     if (subcategory) params.append('subcategory', subcategory);
@@ -393,7 +398,7 @@ useEffect(() => {
         Alert.alert('Lỗi đăng nhập', 'Tên đăng nhập hoặc mật khẩu không đúng');
       }
     } catch (error) {
-      Alert.alert('Lỗi đăng nhập', error.message || 'Có lỗi xảy ra trong quá trình đăng nhập');
+      Alert.alert('Lỗi đăng nhập' + error || 'Có lỗi xảy ra trong quá trình đăng nhập');
     }
 
     setLoading(false);
@@ -780,6 +785,8 @@ const UploadModal: React.FC<{
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
 
+      console.log('Uploading to category:', categoryKey, 'subcategory:', subcategoryKey);
+      console.log('FormData contents:', formData);
       const response = await ApiService.uploadDocument(formData);
 
       clearInterval(progressInterval);
@@ -795,7 +802,7 @@ const UploadModal: React.FC<{
               setDocumentTitle('');
               setAuthorName('');
               setUploadProgress(0);
-              onUploadSuccess();
+              onUploadSuccess?.();
               onClose();
             },
           },
@@ -806,7 +813,7 @@ const UploadModal: React.FC<{
     } catch (error) {
       setUploading(false);
       setUploadProgress(0);
-      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình tải lên tài liệu:\n' + error.message);
+      Alert.alert('Lỗi', 'Có lỗi xảy ra trong quá trình tải lên tài liệu:\n' + error);
     }
   };  
 
@@ -1300,6 +1307,11 @@ export default function EnhancedDigitalArchivesV2() {
         category={getCurrentCategory()}
         subcategory={getCurrentSubcategory()}
         user={user}
+        onUploadSuccess={() => {
+          if (selectedCategory) {
+            loadDocuments(selectedCategory, selectedSubcategory?.keyName);
+          }
+        }}
       />
     </SafeAreaView>
   );
