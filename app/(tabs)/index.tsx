@@ -946,7 +946,7 @@ const UploadModal: React.FC<{
   );
 };
 
-export default function EnhancedDigitalArchivesV2() {
+export default function EnhancedDigitalArchivesV4() {
   const [user, setUser] = useState<User | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -1032,6 +1032,31 @@ export default function EnhancedDigitalArchivesV2() {
       Alert.alert('Lỗi', 'Không thể thực hiện tìm kiếm');
     }
     setLoading(false);
+  };
+
+  const handleDownloadDocument = async (documentId: string, filename: string) => {
+    try {
+      const response = await ApiService.downloadDocument(documentId);
+      
+      if (Platform.OS === 'web') {
+        // Web download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        // Mobile - show success message
+        Alert.alert('Tải xuống', `Tài liệu "${filename}" đã được tải xuống thành công!`);
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      Alert.alert('Lỗi', 'Không thể tải xuống tài liệu: ' + error);
+    }
   };
 
   if (!user) {
