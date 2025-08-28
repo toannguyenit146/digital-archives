@@ -1071,21 +1071,19 @@ export default function EnhancedDigitalArchivesV4() {
     if (category != undefined && !category?.hasSubcategories) {
       setCurrentView('subcategory');
       // For categories without subcategories, create a virtual subcategory
-      setSelectedSubcategory({
-        id: `${categoryId}-main`,
-        title: category.title,
-        icon: category.icon,
-        description: category.description,
-        parentId: categoryId,
-      });
-    } else if (category != undefined) {
+      setSelectedSubcategory({ id: categoryId, title: category.title, icon: category.icon, description: category.description, parentId: categoryId, keyName: category.keyName });
+      loadDocuments(categoryId);
+    } else if (category != undefined && category?.hasSubcategories) {
+      // For categories with subcategories, show subcategory list
       setCurrentView('category');
+      setSelectedSubcategory(null);
     }
   };
 
   const handleSubcategoryPress = (subcategory: SubcategoryItem) => {
     setSelectedSubcategory(subcategory);
     setCurrentView('subcategory');
+    loadDocuments(subcategory.parentId, subcategory.keyName);
   };
 
   const handleDrawerItemPress = (itemId: string) => {
@@ -1274,7 +1272,20 @@ export default function EnhancedDigitalArchivesV4() {
       
       <View style={styles.documentsContainer}>
         <Text style={styles.documentsTitle}>Tài liệu trong danh mục</Text>
-        <Text style={styles.documentsPlaceholder}>Chưa có tài liệu nào</Text>
+        {loading ? (
+          <ActivityIndicator size="large" color="#667eea" style={{ marginTop: 20 }} />
+        ) : documents.length === 0 ? (
+          <Text style={styles.documentsPlaceholder}>Chưa có tài liệu nào</Text>
+          // <Text style={styles.noDocumentsText}>Không có tài liệu nào trong danh mục này.</Text>
+        ) : (
+          documents.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              onDownload={() => handleDownloadDocument(doc.id, doc.title)}
+            />
+          ))
+        )}
       </View>
     </ScrollView>
   );
