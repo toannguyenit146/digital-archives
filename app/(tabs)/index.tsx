@@ -1034,25 +1034,12 @@ export default function EnhancedDigitalArchivesV4() {
     setLoading(false);
   };
 
-  const handleDownloadDocument = async (documentId: string, filename: string) => {
+  const handleDownload = async (document: Document) => {
     try {
-      const response = await ApiService.downloadDocument(documentId);
+      const response = await ApiService.downloadDocument(document.id);
+      // Here you would implement actual download logic
       
-      if (Platform.OS === 'web') {
-        // Web download
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      } else {
-        // Mobile - show success message
-        Alert.alert('Tải xuống', `Tài liệu "${filename}" đã được tải xuống thành công!`);
-      }
+      console.log('Download response:', response);
     } catch (error) {
       console.error('Download error:', error);
       Alert.alert('Lỗi', 'Không thể tải xuống tài liệu: ' + error);
@@ -1071,48 +1058,55 @@ export default function EnhancedDigitalArchivesV4() {
     if (category != undefined && !category?.hasSubcategories) {
       setCurrentView('subcategory');
       // For categories without subcategories, create a virtual subcategory
-      setSelectedSubcategory({ id: categoryId, title: category.title, icon: category.icon, description: category.description, parentId: categoryId, keyName: category.keyName });
+      setSelectedSubcategory({
+        id: `${categoryId}-main`,
+        title: category.title,
+        icon: category.icon,
+        description: category.description,
+        parentId: categoryId,
+        keyName: category.keyName,
+      });
+      // Load documents for this category
       loadDocuments(categoryId);
     } else if (category != undefined && category?.hasSubcategories) {
       // For categories with subcategories, show subcategory list
       setCurrentView('category');
-      setSelectedSubcategory(null);
     }
   };
 
   const handleSubcategoryPress = (subcategory: SubcategoryItem) => {
     setSelectedSubcategory(subcategory);
     setCurrentView('subcategory');
-    loadDocuments(subcategory.parentId, subcategory.keyName);
+    // Load documents for this subcategory
+    loadDocuments(selectedCategory!, subcategory.keyName);
   };
 
   const handleDrawerItemPress = (itemId: string) => {
-  console.log(`Drawer item pressed: ${itemId}`);
-  setIsDrawerOpen(false);
-  
-  switch (itemId) {
-    case 'home':
-      setSelectedCategory(null);
-      setSelectedSubcategory(null);
-      setCurrentView('home');
-      break;
-    case 'settings':
-      Alert.alert('Cài đặt', 'Chức năng đang phát triển');
-      break;
-    case 'more':
-      Alert.alert('Thêm', 'Chức năng bổ sung');
-      break;
-    case 'logout': // <-- updated case to match new id
-      handleLogout();
-      break;
-    default:
-      const category = categories.find(cat => cat.id === itemId);
-      if (category) {
-        handleCategoryPress(itemId, category.title);
-      }
-      break;
-  }
-};
+    console.log(`Drawer item pressed: ${itemId}`);
+    setIsDrawerOpen(false);
+    
+    switch (itemId) {
+      case 'home':
+        setSelectedCategory(null);
+        setSelectedSubcategory(null);
+        setCurrentView('home');
+        setDocuments([]);
+        setSearchResults([]);
+        break;
+      case 'settings':
+        Alert.alert('Cài đặt', 'Chức năng đang phát triển');
+        break;
+      case 'logout':
+        handleLogout();
+        break;
+      default:
+        const category = categories.find(cat => cat.id === itemId);
+        if (category) {
+          handleCategoryPress(itemId, category.title);
+        }
+        break;
+    }
+  };
 
   const handleBackPress = () => {
     if (currentView === 'subcategory') {
@@ -1120,14 +1114,21 @@ export default function EnhancedDigitalArchivesV4() {
       if (category?.hasSubcategories) {
         setCurrentView('category');
         setSelectedSubcategory(null);
+        setDocuments([]);
       } else {
         setCurrentView('home');
         setSelectedCategory(null);
         setSelectedSubcategory(null);
+        setDocuments([]);
       }
     } else if (currentView === 'category') {
       setCurrentView('home');
       setSelectedCategory(null);
+      setDocuments([]);
+    } else if (currentView === 'search') {
+      setCurrentView('home');
+      setSearchResults([]);
+      setSearchQuery('');
     }
   };
 
@@ -1197,7 +1198,7 @@ export default function EnhancedDigitalArchivesV4() {
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Icon name="folder" size={32} color="#667eea" />
-            <Text style={styles.statNumber}>8</Text>
+            <Text style={styles.statNumber}>9</Text>
             <Text style={styles.statLabel}>Danh mục</Text>
           </View>
           <View style={styles.statCard}>
@@ -1271,20 +1272,71 @@ export default function EnhancedDigitalArchivesV4() {
       )}
       
       <View style={styles.documentsContainer}>
-        <Text style={styles.documentsTitle}>Tài liệu trong danh mục</Text>
+        <Text style={styles.documentsTitle}>
+          Tài liệu trong danh mục ({documents.length})
+        </Text>
+        
         {loading ? (
-          <ActivityIndicator size="large" color="#667eea" style={{ marginTop: 20 }} />
-        ) : documents.length === 0 ? (
-          <Text style={styles.documentsPlaceholder}>Chưa có tài liệu nào</Text>
-          // <Text style={styles.noDocumentsText}>Không có tài liệu nào trong danh mục này.</Text>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#667eea" />
+            <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
+          </View>
+        ) : documents.length > 0 ? (
+          <View style={styles.documentsGrid}>
+            {documents.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onDownload={() => handleDownload(doc)}
+              />
+            ))}
+          </View>
         ) : (
-          documents.map((doc) => (
-            <DocumentCard
-              key={doc.id}
-              document={doc}
-              onDownload={() => handleDownloadDocument(doc.id, doc.title)}
-            />
-          ))
+          <Text style={styles.documentsPlaceholder}>
+            Chưa có tài liệu nào trong danh mục này
+          </Text>
+        )}
+      </View>
+    </ScrollView>
+  );
+
+  const renderSearchView = () => (
+    <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+      <View style={styles.subcategoryHeader}>
+        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+          <Icon name="chevron-back" size={20} color="#667eea" />
+          <Text style={styles.backButtonText}>Quay lại</Text>
+        </TouchableOpacity>
+        <Text style={styles.subcategoryTitle}>Kết quả tìm kiếm</Text>
+        <Text style={styles.subcategorySubtitle}>
+          Từ khóa: "{searchQuery}" ({searchResults.length} kết quả)
+        </Text>
+      </View>
+      
+      <View style={styles.documentsContainer}>
+        <Text style={styles.documentsTitle}>
+          Tài liệu tìm thấy ({searchResults.length})
+        </Text>
+        
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#667eea" />
+            <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
+          </View>
+        ) : searchResults.length > 0 ? (
+          <View style={styles.documentsGrid}>
+            {searchResults.map((doc) => (
+              <DocumentCard
+                key={doc.id}
+                document={doc}
+                onDownload={() => handleDownload(doc)}
+              />
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.documentsPlaceholder}>
+            Không tìm thấy tài liệu nào với từ khóa "{searchQuery}"
+          </Text>
         )}
       </View>
     </ScrollView>
@@ -1321,6 +1373,7 @@ export default function EnhancedDigitalArchivesV4() {
       {currentView === 'home' && renderHomeView()}
       {currentView === 'category' && renderCategoryView()}
       {currentView === 'subcategory' && renderSubcategoryView()}
+      {currentView === 'search' && renderSearchView()}
 
       {/* Animated Navigation Drawer */}
       <AnimatedDrawer
@@ -1334,6 +1387,7 @@ export default function EnhancedDigitalArchivesV4() {
       <SearchModal
         isVisible={isSearchModalOpen}
         onClose={() => setIsSearchModalOpen(false)}
+        onSearch={handleSearch}
       />
 
       {/* Upload Modal */}
@@ -2010,5 +2064,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-
+  
 });
