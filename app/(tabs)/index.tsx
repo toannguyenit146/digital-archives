@@ -1126,69 +1126,78 @@ export default function EnhancedDigitalArchivesV4() {
   // 4. Replace the handleDownload function with this enhanced version
 const handleDownload = async (document: Document) => {
   try {
-    const downloadUrl = await ApiService.getDownloadUrl(document.id);
-    if (!downloadUrl) {
-      Alert.alert("Lỗi", "Không tìm thấy file để tải");
+    const token = await SecureStore.getItemAsync("authToken");
+    if (!token) {
+      Alert.alert("Lỗi", "Không tìm thấy token đăng nhập");
       return;
     }
 
-    // Parse tên file
-    const getFileNameFromUrl = (url: string) => {
-      return url.split("/").pop()?.split("?")[0] || `document-${document.id}`;
-    };
-    let fileName = document.filename || getFileNameFromUrl(downloadUrl);
+    // Gọi API download với Authorization header
+    const response = await fetch(`${API_BASE_URL}/documents/${document.id}/download`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    if (!fileName.includes(".") && document.file_type) {
-      const ext = document.file_type.split("/")[1];
-      fileName = `${fileName}.${ext}`;
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error || "Download failed");
     }
 
-    if (Platform.OS === "android") {
-      // Android: lưu vào thư mục Download bằng SAF
-      const permissions =
-        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+    // Đổi response thành blob → base64
+    const blob = await response.blob();
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
 
-      if (!permissions.granted) {
-        Alert.alert("Thông báo", "Không có quyền truy cập bộ nhớ");
-        return;
-      }
+    reader.onloadend = async () => {
+      try {
+        const base64data = (reader.result as string).split(",")[1];
 
-      // Tải file về cache trước
-      const fileUri = FileSystem.cacheDirectory + fileName;
-      const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
+        // Tên file
+        let fileName = document.filename;
+        if (!fileName.includes(".") && document.file_type) {
+          const ext = document.file_type.split("/")[1];
+          fileName = `${fileName}.${ext}`;
+        }
 
-      // Đọc file thành blob base64
-      const fileBase64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
+        if (Platform.OS === "android") {
+          // Xin quyền thư mục Download
+          const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+          if (!permissions.granted) {
+            Alert.alert("Thông báo", "Không có quyền truy cập bộ nhớ");
+            return;
+          }
 
-      // Lưu vào thư mục Download
-      await FileSystem.StorageAccessFramework.createFileAsync(
-        permissions.directoryUri,
-        fileName,
-        document.file_type || "application/octet-stream"
-      )
-        .then(async (uri) => {
-          await FileSystem.writeAsStringAsync(uri, fileBase64, {
+          // Tạo file trong thư mục Download và ghi nội dung
+          const uri = await FileSystem.StorageAccessFramework.createFileAsync(
+            permissions.directoryUri,
+            fileName,
+            document.file_type || "application/octet-stream"
+          );
+          await FileSystem.writeAsStringAsync(uri, base64data, {
             encoding: FileSystem.EncodingType.Base64,
           });
-          Alert.alert("Thành công ✅", `Đã lưu file vào Download: ${fileName}`);
-        })
-        .catch((err) => {
-          console.error("Save error:", err);
-          Alert.alert("Lỗi", "Không thể lưu file");
-        });
-    } else {
-      // iOS: lưu vào cache và dùng Sharing mở file
-      const fileUri = FileSystem.cacheDirectory + fileName;
-      const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(uri);
-      } else {
-        Alert.alert("Thành công ✅", `File đã lưu: ${uri}`);
+          Alert.alert("Thành công ✅", `Đã lưu file vào Download: ${fileName}`);
+        } else {
+          // iOS: lưu cache rồi mở qua Share
+          const fileUri = FileSystem.cacheDirectory + fileName;
+          await FileSystem.writeAsStringAsync(fileUri, base64data, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri);
+          } else {
+            Alert.alert("Thành công ✅", `File đã lưu: ${fileUri}`);
+          }
+        }
+      } catch (err) {
+        console.error("Save error:", err);
+        Alert.alert("Lỗi", "Không thể lưu file");
       }
-    }
+    };
   } catch (error) {
     console.error("Download exception:", error);
     Alert.alert("Lỗi", "Có lỗi khi tải file");
