@@ -1,5 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from "expo-file-system";
 import * as SecureStore from 'expo-secure-store';
+import * as Sharing from "expo-sharing";
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -192,6 +194,12 @@ class ApiService {
     }
 
     return response;
+  }
+  
+  // Add new method for getting download URL
+  static async getDownloadUrl(documentId: any) {
+    const token = await SecureStore.getItemAsync('authToken');
+    return `${API_BASE_URL}/documents/${documentId}/download?token=${token}`;
   }
 
   static async searchDocuments(query: string, category: string | undefined, subcategory: string | undefined) {
@@ -510,10 +518,13 @@ const SubcategoryCard: React.FC<{
   </TouchableOpacity>
 );
 
+// 3. Replace the existing DocumentCard component with this enhanced version
 const DocumentCard: React.FC<{
   document: Document;
   onDownload: () => void;
 }> = ({ document, onDownload }) => {
+  const [downloading, setDownloading] = useState(false);
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -527,26 +538,104 @@ const DocumentCard: React.FC<{
     return date.toLocaleDateString('vi-VN');
   };
 
+  const getFileTypeIcon = (fileType: string) => {
+    const type = fileType.toLowerCase();
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('word') || type.includes('doc')) return '📝';
+    if (type.includes('excel') || type.includes('sheet')) return '📊';
+    if (type.includes('powerpoint') || type.includes('presentation')) return '📺';
+    if (type.includes('image') || type.includes('jpg') || type.includes('png')) return '🖼️';
+    if (type.includes('video') || type.includes('mp4') || type.includes('avi')) return '🎥';
+    if (type.includes('audio') || type.includes('mp3') || type.includes('wav')) return '🎵';
+    if (type.includes('zip') || type.includes('rar')) return '🗜️';
+    return '📁';
+  };
+
+  const getCategoryColor = (category: string) => {
+    const categoryColors = {
+      'tailieu': '#4A90E2',
+      'kienthucthuongtruc': '#7ED321',
+      'doituongsqvaqncn': '#F5A623',
+      'doituonghltpd': '#FF6B6B',
+      'hasiquanvabinhsi': '#D0021B',
+      'dangvienvadangvienmoi': '#9013FE',
+      'doituongdoanvien': '#50E3C2',
+      'cauhoikienthucgdct': '#B8E986',
+      'cauhoikienthucphapluat': '#4BD5EA',
+    };
+    return categoryColors[category as keyof typeof categoryColors] || '#667eea';
+  };
+
   return (
-    <View style={styles.documentCard}>
-      <View style={styles.documentHeader}>
-        <Icon name="document-text" size={24} color="#667eea" />
-        <Text style={styles.documentTitle} numberOfLines={2}>{document.title}</Text>
+    <View style={styles.enhancedDocumentCard}>
+      {/* Header with file type and category indicator */}
+      <View style={styles.documentCardHeader}>
+        <View style={styles.fileTypeContainer}>
+          <Text style={styles.fileTypeIcon}>{getFileTypeIcon(document.file_type)}</Text>
+          <Text style={styles.fileTypeText}>{document.file_type.split('/')[1]?.toUpperCase() || 'FILE'}</Text>
+        </View>
+        <View 
+          style={[
+            styles.categoryIndicator, 
+            { backgroundColor: getCategoryColor(document.category) }
+          ]}
+        />
       </View>
-      
-      <View style={styles.documentInfo}>
-        <Text style={styles.documentInfoText}>Tác giả: {document.author}</Text>
-        <Text style={styles.documentInfoText}>Tải lên: {formatDate(document.created_at)}</Text>
-        <Text style={styles.documentInfoText}>Kích thước: {formatFileSize(document.file_size)}</Text>
+
+      {/* Document Title */}
+      <Text style={styles.enhancedDocumentTitle} numberOfLines={2}>
+        {document.title}
+      </Text>
+
+      {/* Document Info Grid */}
+      <View style={styles.documentInfoGrid}>
+        <View style={styles.infoItem}>
+          <Icon name="user" size={14} color="#64748b" />
+          <Text style={styles.infoText} numberOfLines={1}>{document.author}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Icon name="history" size={14} color="#64748b" />
+          <Text style={styles.infoText}>{formatDate(document.created_at)}</Text>
+        </View>
+        <View style={styles.infoItem}>
+          <Icon name="document-text" size={14} color="#64748b" />
+          <Text style={styles.infoText}>{formatFileSize(document.file_size)}</Text>
+        </View>
         {document.uploader_name && (
-          <Text style={styles.documentInfoText}>Người tải: {document.uploader_name}</Text>
+          <View style={styles.infoItem}>
+            <Icon name="upload" size={14} color="#64748b" />
+            <Text style={styles.infoText} numberOfLines={1}>{document.uploader_name}</Text>
+          </View>
         )}
       </View>
-      
-      <TouchableOpacity style={styles.downloadButton} onPress={onDownload}>
-        <Icon name="download" size={16} color="white" />
-        <Text style={styles.downloadButtonText}>Tải xuống</Text>
-      </TouchableOpacity>
+
+      {/* Action Buttons */}
+      <View style={styles.documentActions}>
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.downloadButton]}
+          onPress={onDownload}
+          disabled={downloading}
+        >
+          {downloading ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <>
+              <Icon name="download" size={16} color="white" />
+              <Text style={styles.actionButtonText}>Tải xuống</Text>
+            </>
+          )}
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.previewButton]}
+          onPress={() => {
+            // Preview functionality can be added here
+            Alert.alert('Xem trước', 'Chức năng xem trước đang phát triển');
+          }}
+        >
+          <Icon name="eye" size={16} color="#667eea" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -1034,17 +1123,78 @@ export default function EnhancedDigitalArchivesV4() {
     setLoading(false);
   };
 
-  const handleDownload = async (document: Document) => {
-    try {
-      const response = await ApiService.downloadDocument(document.id);
-      // Here you would implement actual download logic
-      
-      console.log('Download response:', response);
-    } catch (error) {
-      console.error('Download error:', error);
-      Alert.alert('Lỗi', 'Không thể tải xuống tài liệu: ' + error);
+  // 4. Replace the handleDownload function with this enhanced version
+const handleDownload = async (document: Document) => {
+  try {
+    const downloadUrl = await ApiService.getDownloadUrl(document.id);
+    if (!downloadUrl) {
+      Alert.alert("Lỗi", "Không tìm thấy file để tải");
+      return;
     }
-  };
+
+    // Parse tên file
+    const getFileNameFromUrl = (url: string) => {
+      return url.split("/").pop()?.split("?")[0] || `document-${document.id}`;
+    };
+    let fileName = document.filename || getFileNameFromUrl(downloadUrl);
+
+    if (!fileName.includes(".") && document.file_type) {
+      const ext = document.file_type.split("/")[1];
+      fileName = `${fileName}.${ext}`;
+    }
+
+    if (Platform.OS === "android") {
+      // Android: lưu vào thư mục Download bằng SAF
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+
+      if (!permissions.granted) {
+        Alert.alert("Thông báo", "Không có quyền truy cập bộ nhớ");
+        return;
+      }
+
+      // Tải file về cache trước
+      const fileUri = FileSystem.cacheDirectory + fileName;
+      const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
+
+      // Đọc file thành blob base64
+      const fileBase64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+
+      // Lưu vào thư mục Download
+      await FileSystem.StorageAccessFramework.createFileAsync(
+        permissions.directoryUri,
+        fileName,
+        document.file_type || "application/octet-stream"
+      )
+        .then(async (uri) => {
+          await FileSystem.writeAsStringAsync(uri, fileBase64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          Alert.alert("Thành công ✅", `Đã lưu file vào Download: ${fileName}`);
+        })
+        .catch((err) => {
+          console.error("Save error:", err);
+          Alert.alert("Lỗi", "Không thể lưu file");
+        });
+    } else {
+      // iOS: lưu vào cache và dùng Sharing mở file
+      const fileUri = FileSystem.cacheDirectory + fileName;
+      const { uri } = await FileSystem.downloadAsync(downloadUrl, fileUri);
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri);
+      } else {
+        Alert.alert("Thành công ✅", `File đã lưu: ${uri}`);
+      }
+    }
+  } catch (error) {
+    console.error("Download exception:", error);
+    Alert.alert("Lỗi", "Có lỗi khi tải file");
+  }
+};
+
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -1248,57 +1398,70 @@ export default function EnhancedDigitalArchivesV4() {
     );
   };
 
-  const renderSubcategoryView = () => (
-    <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.subcategoryHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Icon name="chevron-back" size={20} color="#667eea" />
-          <Text style={styles.backButtonText}>Quay lại</Text>
+  // 5. Update the renderSubcategoryView to use improved document grid
+const renderSubcategoryView = () => (
+  <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+    <View style={styles.subcategoryHeader}>
+      <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+        <Icon name="chevron-back" size={20} color="#667eea" />
+        <Text style={styles.backButtonText}>Quay lại</Text>
+      </TouchableOpacity>
+      <Text style={styles.subcategoryTitle}>{selectedSubcategory?.title}</Text>
+      <Text style={styles.subcategorySubtitle}>{selectedSubcategory?.description}</Text>
+    </View>
+    
+    {canUpload() && (
+      <View style={styles.uploadSection}>
+        <TouchableOpacity 
+          style={styles.uploadFloatingButton}
+          onPress={() => setIsUploadModalOpen(true)}
+        >
+          <Icon name="upload" size={24} color="white" />
+          <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
         </TouchableOpacity>
-        <Text style={styles.subcategoryTitle}>{selectedSubcategory?.title}</Text>
-        <Text style={styles.subcategorySubtitle}>{selectedSubcategory?.description}</Text>
+      </View>
+    )}
+    
+    <View style={styles.documentsContainer}>
+      <View style={styles.documentsHeader}>
+        <Text style={styles.documentsTitle}>
+          Tài liệu ({documents.length})
+        </Text>
+        <View style={styles.documentsStats}>
+          <Text style={styles.documentsStatsText}>
+            {documents.reduce((total, doc) => total + doc.file_size, 0) > 0 && 
+              `${(documents.reduce((total, doc) => total + doc.file_size, 0) / (1024 * 1024)).toFixed(1)} MB`}
+          </Text>
+        </View>
       </View>
       
-      {canUpload() && (
-        <View style={styles.uploadSection}>
-          <TouchableOpacity 
-            style={styles.uploadFloatingButton}
-            onPress={() => setIsUploadModalOpen(true)}
-          >
-            <Icon name="upload" size={24} color="white" />
-            <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
-          </TouchableOpacity>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#667eea" />
+          <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
+        </View>
+      ) : documents.length > 0 ? (
+        <View style={styles.enhancedDocumentsGrid}>
+          {documents.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              onDownload={() => handleDownload(doc)}
+            />
+          ))}
+        </View>
+      ) : (
+        <View style={styles.emptyState}>
+          <Icon name="folder" size={64} color="#cbd5e1" />
+          <Text style={styles.emptyStateTitle}>Chưa có tài liệu</Text>
+          <Text style={styles.emptyStateText}>
+            Danh mục này chưa có tài liệu nào được tải lên
+          </Text>
         </View>
       )}
-      
-      <View style={styles.documentsContainer}>
-        <Text style={styles.documentsTitle}>
-          Tài liệu trong danh mục ({documents.length})
-        </Text>
-        
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#667eea" />
-            <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
-          </View>
-        ) : documents.length > 0 ? (
-          <View style={styles.documentsGrid}>
-            {documents.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                onDownload={() => handleDownload(doc)}
-              />
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.documentsPlaceholder}>
-            Chưa có tài liệu nào trong danh mục này
-          </Text>
-        )}
-      </View>
-    </ScrollView>
-  );
+    </View>
+  </ScrollView>
+);
 
   const renderSearchView = () => (
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
@@ -1324,7 +1487,7 @@ export default function EnhancedDigitalArchivesV4() {
             <Text style={styles.loadingText}>Đang tìm kiếm...</Text>
           </View>
         ) : searchResults.length > 0 ? (
-          <View style={styles.documentsGrid}>
+          <View style={styles.documentInfoGrid}>
             {searchResults.map((doc) => (
               <DocumentCard
                 key={doc.id}
@@ -2064,5 +2227,148 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
   },
-  
+  // Enhanced Document Card Styles
+  enhancedDocumentCard: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    marginBottom: 16,
+    elevation: 3,
+    boxShadow: "0px 2px 8px rgba(0,0,0,0.1)",
+    overflow: 'hidden',
+  },
+  documentCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    paddingBottom: 12,
+  },
+  fileTypeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  fileTypeIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  fileTypeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  categoryIndicator: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+  },
+  enhancedDocumentTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    lineHeight: 22,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  documentInfoGrid: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 13,
+    color: '#64748b',
+    marginLeft: 8,
+    flex: 1,
+  },
+  documentActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
+    backgroundColor: '#fafbfc',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  downloadButton: {
+    backgroundColor: '#667eea',
+    flex: 1,
+  },
+  previewButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: '#667eea',
+    minWidth: 44,
+  },
+  actionButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  // Enhanced Documents Container
+  documentsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  documentsStats: {
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  documentsStatsText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  enhancedDocumentsGrid: {
+    // Single column layout for better readability
+  },
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyStateTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // Loading Container
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#64748b',
+    marginTop: 12,
+  },
 });
