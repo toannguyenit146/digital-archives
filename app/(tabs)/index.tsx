@@ -626,7 +626,7 @@ const DocumentCard: React.FC<{
           )}
         </TouchableOpacity>
         
-        <TouchableOpacity 
+        {/* <TouchableOpacity 
           style={[styles.actionButton, styles.previewButton]}
           onPress={() => {
             // Preview functionality can be added here
@@ -634,7 +634,7 @@ const DocumentCard: React.FC<{
           }}
         >
           <Icon name="eye" size={16} color="#667eea" />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );
