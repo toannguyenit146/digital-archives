@@ -19,6 +19,31 @@ import {
   View
 } from 'react-native';
 
+// ✅ Wrapper Storage cho Web + Mobile
+const StorageOS = {
+async setItem(key: string, value: string) {
+if (Platform.OS === "web") {
+localStorage.setItem(key, value);
+} else {
+await SecureStore.setItemAsync(key, value);
+}
+},
+async getItem(key: string) {
+if (Platform.OS === "web") {
+return localStorage.getItem(key);
+} else {
+return await SecureStore.getItemAsync(key);
+}
+},
+async deleteItem(key: string) {
+if (Platform.OS === "web") {
+localStorage.removeItem(key);
+} else {
+await SecureStore.deleteItemAsync(key);
+}
+},
+};
+
 const { width, height } = Dimensions.get('window');
 
 // API Configuration - Change this to your backend server URL
@@ -87,7 +112,7 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
 class ApiService {
   static async makeRequest(endpoint: string, options = {}) {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
+      const token = await StorageOS.getItem('authToken');
       const config = {
         headers: {
           'Content-Type': 'application/json',
@@ -115,7 +140,6 @@ class ApiService {
     try {
       console.log('Login Payload:', { username, password });
       console.log('Logging in to:', `${API_BASE_URL}/auth/login`);
-      console.log('Parse: ' + JSON.stringify({ username, password }));
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -131,7 +155,7 @@ class ApiService {
 
       // ✅ Lưu token lại
       if (data.token) {
-        await SecureStore.setItemAsync("authToken", data.token);
+        await StorageOS.setItem("authToken", data.token);
       }
 
       return data;
@@ -157,10 +181,8 @@ class ApiService {
     // Extract category and subcategory from formData
     const categoryKey = formData.get('category') as string;
     const subcategoryKey = formData.get('subcategory') as string;
-    const token = await SecureStore.getItemAsync('authToken');
-    console.log("Uploading document with formData:", formData);
+    const token = await StorageOS.getItem('authToken');
     const url = `${API_BASE_URL}/documents/upload?category=${encodeURIComponent(categoryKey || "general")}&subcategory=${encodeURIComponent(subcategoryKey || "general")}`;
-    console.log('Upload URL:', url);
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -180,7 +202,7 @@ class ApiService {
   }
 
   static async downloadDocument(documentId: any) {
-    const token = await SecureStore.getItemAsync('authToken');
+    const token = await StorageOS.getItem('authToken');
     
     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/download`, {
       headers: {
@@ -198,7 +220,7 @@ class ApiService {
   
   // Add new method for getting download URL
   static async getDownloadUrl(documentId: any) {
-    const token = await SecureStore.getItemAsync('authToken');
+    const token = await StorageOS.getItem('authToken');
     return `${API_BASE_URL}/documents/${documentId}/download?token=${token}`;
   }
 
@@ -373,8 +395,8 @@ useEffect(() => {
 
   const checkExistingSession = async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      const userData = await SecureStore.getItemAsync('userData');
+      const token = await StorageOS.getItem('authToken');
+      const userData = await StorageOS.getItem('userData');
       
       if (token && userData) {
         const user = JSON.parse(userData);
@@ -398,8 +420,8 @@ useEffect(() => {
       
       if (response.success) {
         // Store session
-        await SecureStore.setItemAsync('authToken', response.token);
-        await SecureStore.setItemAsync('userData', JSON.stringify(response.user));
+        await StorageOS.setItem('authToken', response.token);
+        await StorageOS.setItem('userData', JSON.stringify(response.user));
 
         onLogin(response.user);
       } else {
@@ -875,7 +897,6 @@ const UploadModal: React.FC<{
       }, 200);
 
       console.log('Uploading to category:', categoryKey, 'subcategory:', subcategoryKey);
-      console.log('FormData contents:', formData);
       const response = await ApiService.uploadDocument(formData);
 
       clearInterval(progressInterval);
@@ -1053,15 +1074,27 @@ export default function EnhancedDigitalArchivesV4() {
   };
 
   const handleLogout = async () => {
-    Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
+    if (Platform.OS === "web") {
+      alert("Đăng xuất thành công");
+      localStorage.clear();
+
+      // Reset app state
+      setUser(null);
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setCurrentView('home');
+      setDocuments([]);
+      setSearchResults([]);
+    } else {
+      Alert.alert('Đăng xuất', 'Bạn có muốn đăng xuất?', [
       { text: 'Hủy', style: 'cancel' },
       { 
         text: 'Đăng xuất', 
         onPress: async () => {
           try {
             // Clear stored session
-            await SecureStore.deleteItemAsync('authToken');
-            await SecureStore.deleteItemAsync('userData');
+            await StorageOS.deleteItem('authToken');
+            await StorageOS.deleteItem('userData');
             
             // Reset app state
             setUser(null);
@@ -1076,6 +1109,7 @@ export default function EnhancedDigitalArchivesV4() {
         }
       }
     ]);
+    }
   };
 
   const loadDocuments = async (categoryId: string, subcategoryId?: string) => {
@@ -1126,7 +1160,7 @@ export default function EnhancedDigitalArchivesV4() {
   // 4. Replace the handleDownload function with this enhanced version
 const handleDownload = async (document: Document) => {
   try {
-    const token = await SecureStore.getItemAsync("authToken");
+    const token = await StorageOS.getItem("authToken");
     if (!token) {
       Alert.alert("Lỗi", "Không tìm thấy token đăng nhập");
       return;
