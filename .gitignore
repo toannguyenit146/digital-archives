@@ -50,3 +50,6 @@ app-example/
 
 # File uploads
 uploads/
+
+# Keystores
+*.keystore
