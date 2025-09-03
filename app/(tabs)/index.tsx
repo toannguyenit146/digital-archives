@@ -17,8 +17,8 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { styles } from '../../src/styles';
 import { CategoryItem, Document, SubcategoryItem, User } from '../../src/types';
-import { styles } from './styles';
 
 // ✅ Wrapper Storage cho Web + Mobile
 const StorageOS = {
