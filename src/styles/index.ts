@@ -537,27 +537,34 @@ export const styles = StyleSheet.create({
       fontSize: 16,
       fontWeight: '600',
     },
-    // Upload Modal Styles
+    // Upload Modal Styles - Updated and Complete
     uploadModalOverlay: {
       flex: 1,
       backgroundColor: 'rgba(0,0,0,0.5)',
       justifyContent: 'center',
+      alignItems: 'center',
       paddingHorizontal: 20,
     },
     uploadModalContent: {
       backgroundColor: 'white',
       borderRadius: 20,
       padding: 20,
-      maxHeight: '80%',
+      width: '100%',
+      maxHeight: '90%',
+      elevation: 8,
+      boxShadow: "0px 4px 12px rgba(0,0,0,0.15)",
     },
     uploadHeader: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
       marginBottom: 20,
+      paddingBottom: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: '#f1f5f9',
     },
     uploadTitle: {
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: 'bold',
       color: '#1e293b',
     },
@@ -566,11 +573,14 @@ export const styles = StyleSheet.create({
       borderRadius: 12,
       padding: 15,
       marginBottom: 15,
+      borderWidth: 1,
+      borderColor: '#e2e8f0',
     },
     uploadInfoLabel: {
       fontSize: 14,
       color: '#64748b',
       marginBottom: 5,
+      fontWeight: '500',
     },
     uploadInfoValue: {
       fontSize: 16,
@@ -582,6 +592,37 @@ export const styles = StyleSheet.create({
       borderRadius: 12,
       padding: 15,
       marginBottom: 20,
+      borderWidth: 1,
+      borderColor: '#e0f2fe',
+    },
+    // Input Section Styles
+    inputSection: {
+      marginBottom: 20,
+    },
+    inputLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: 8,
+    },
+    textInput: {
+      borderWidth: 1,
+      borderColor: '#d1d5db',
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      fontSize: 16,
+      color: '#1e293b',
+      backgroundColor: 'white',
+      minHeight: 48,
+    },
+    textInputFocused: {
+      borderColor: '#667eea',
+      boxShadow: "0 0 0 3px rgba(102, 126, 234, 0.1)",
+    },
+    textInputError: {
+      borderColor: '#ef4444',
+      backgroundColor: '#fef2f2',
     },
     filePickerButton: {
       backgroundColor: '#f8fafc',
@@ -592,6 +633,13 @@ export const styles = StyleSheet.create({
       padding: 20,
       alignItems: 'center',
       marginBottom: 20,
+      minHeight: 80,
+      justifyContent: 'center',
+    },
+    filePickerButtonDisabled: {
+      borderColor: '#d1d5db',
+      backgroundColor: '#f9fafb',
+      opacity: 0.6,
     },
     filePickerText: {
       color: '#667eea',
@@ -599,21 +647,28 @@ export const styles = StyleSheet.create({
       fontWeight: '600',
       marginTop: 10,
     },
+    filePickerTextDisabled: {
+      color: '#9ca3af',
+    },
     selectedFileInfo: {
       backgroundColor: '#f1f5f9',
       borderRadius: 12,
       padding: 15,
       marginBottom: 20,
+      borderWidth: 1,
+      borderColor: '#e2e8f0',
     },
     fileInfoRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
+      alignItems: 'flex-start',
       marginBottom: 8,
     },
     fileInfoLabel: {
       fontSize: 14,
       color: '#64748b',
       fontWeight: '500',
+      minWidth: 80,
     },
     fileInfoValue: {
       fontSize: 14,
@@ -621,15 +676,22 @@ export const styles = StyleSheet.create({
       flex: 1,
       textAlign: 'right',
       marginLeft: 10,
+      fontWeight: '500',
     },
     progressContainer: {
       marginBottom: 20,
+      padding: 15,
+      backgroundColor: '#f8fafc',
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: '#e2e8f0',
     },
     progressBar: {
       height: 8,
       backgroundColor: '#e2e8f0',
       borderRadius: 4,
       marginBottom: 10,
+      overflow: 'hidden',
     },
     progressFill: {
       height: '100%',
@@ -640,6 +702,7 @@ export const styles = StyleSheet.create({
       fontSize: 14,
       color: '#64748b',
       textAlign: 'center',
+      fontWeight: '500',
     },
     uploadButton: {
       backgroundColor: '#667eea',
@@ -648,10 +711,15 @@ export const styles = StyleSheet.create({
       justifyContent: 'center',
       borderRadius: 12,
       paddingVertical: 15,
-      marginTop: 10,
+      marginTop: 0,
+      minHeight: 30,
+      elevation: 2,
+      boxShadow: "0px 2px 4px rgba(102, 126, 234, 0.2)",
     },
     uploadButtonDisabled: {
       backgroundColor: '#94a3b8',
+      elevation: 0,
+      boxShadow: "none",
     },
     uploadButtonText: {
       color: 'white',

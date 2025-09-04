@@ -141,23 +141,39 @@ const UploadModal: React.FC<{
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  const resetForm = () => {
+    setSelectedFile(null);
+    setDocumentTitle("");
+    setAuthorName("");
+    setUploadProgress(0);
+  };
+
+  const handleClose = () => {
+    if (!uploading) {
+      resetForm();
+      onClose();
+    }
+  };
+
   return (
     <Modal
       animationType="slide"
       transparent={true}
       visible={isVisible}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
     >
       <View style={styles.uploadModalOverlay}>
-        <ScrollView contentContainerStyle={styles.uploadModalContainer}>
-          <View style={styles.uploadModalContent}>
+        <View style={styles.uploadModalContent}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Header */}
             <View style={styles.uploadHeader}>
               <Text style={styles.uploadTitle}>Tải lên tài liệu</Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={handleClose} disabled={uploading}>
                 <Icon name="close" size={24} color="#64748b" />
               </TouchableOpacity>
             </View>
 
+            {/* Location Info */}
             <View style={styles.uploadInfo}>
               <Text style={styles.uploadInfoLabel}>Vị trí lưu trữ:</Text>
               <Text style={styles.uploadInfoValue}>
@@ -166,65 +182,87 @@ const UploadModal: React.FC<{
               </Text>
             </View>
 
+            {/* Uploader Info */}
             <View style={styles.uploaderInfo}>
               <Text style={styles.uploadInfoLabel}>Người tải lên:</Text>
               <Text style={styles.uploadInfoValue}>{user.name}</Text>
             </View>
 
+            {/* Document Title Input */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Tên tài liệu *</Text>
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  !documentTitle.trim() && styles.textInputError
+                ]}
                 placeholder="Nhập tên tài liệu"
                 value={documentTitle}
                 onChangeText={setDocumentTitle}
+                editable={!uploading}
+                placeholderTextColor="#9ca3af"
               />
             </View>
 
+            {/* Author Input */}
             <View style={styles.inputSection}>
               <Text style={styles.inputLabel}>Tác giả *</Text>
               <TextInput
-                style={styles.textInput}
+                style={[
+                  styles.textInput,
+                  !authorName.trim() && styles.textInputError
+                ]}
                 placeholder="Nhập tên tác giả"
                 value={authorName}
                 onChangeText={setAuthorName}
+                editable={!uploading}
+                placeholderTextColor="#9ca3af"
               />
             </View>
 
+            {/* File Picker */}
             <TouchableOpacity
-              style={styles.filePickerButton}
+              style={[
+                styles.filePickerButton,
+                uploading && styles.filePickerButtonDisabled
+              ]}
               onPress={pickDocument}
               disabled={uploading}
             >
-              <Icon name="folder" size={20} color="#667eea" />
-              <Text style={styles.filePickerText}>
+              <Icon name="folder" size={20} color={uploading ? "#9ca3af" : "#667eea"} />
+              <Text style={[
+                styles.filePickerText,
+                uploading && styles.filePickerTextDisabled
+              ]}>
                 {selectedFile ? "Chọn tệp khác" : "Chọn tệp từ máy"}
               </Text>
             </TouchableOpacity>
 
+            {/* Selected File Info */}
             {selectedFile && (
               <View style={styles.selectedFileInfo}>
                 <View style={styles.fileInfoRow}>
                   <Text style={styles.fileInfoLabel}>Tên tệp:</Text>
-                  <Text style={styles.fileInfoValue}>{selectedFile.name}</Text>
+                  <Text style={styles.fileInfoValue} numberOfLines={1}>
+                    {selectedFile.name}
+                  </Text>
                 </View>
                 <View style={styles.fileInfoRow}>
                   <Text style={styles.fileInfoLabel}>Kích thước:</Text>
                   <Text style={styles.fileInfoValue}>
-                    {selectedFile.size
-                      ? formatFileSize(selectedFile.size)
-                      : "N/A"}
+                    {selectedFile.size ? formatFileSize(selectedFile.size) : "N/A"}
                   </Text>
                 </View>
                 <View style={styles.fileInfoRow}>
                   <Text style={styles.fileInfoLabel}>Loại tệp:</Text>
-                  <Text style={styles.fileInfoValue}>
+                  <Text style={styles.fileInfoValue} numberOfLines={1}>
                     {selectedFile.mimeType || "N/A"}
                   </Text>
                 </View>
               </View>
             )}
 
+            {/* Upload Progress */}
             {uploading && (
               <View style={styles.progressContainer}>
                 <View style={styles.progressBar}>
@@ -241,6 +279,7 @@ const UploadModal: React.FC<{
               </View>
             )}
 
+            {/* Upload Button */}
             <TouchableOpacity
               style={[
                 styles.uploadButton,
@@ -259,7 +298,10 @@ const UploadModal: React.FC<{
               }
             >
               {uploading ? (
-                <ActivityIndicator size="small" color="white" />
+                <>
+                  <ActivityIndicator size="small" color="white" />
+                  <Text style={styles.uploadButtonText}>Đang tải lên...</Text>
+                </>
               ) : (
                 <>
                   <Icon name="upload" size={20} color="white" />
@@ -267,8 +309,8 @@ const UploadModal: React.FC<{
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </View>
       </View>
     </Modal>
   );
