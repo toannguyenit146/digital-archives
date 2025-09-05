@@ -15,6 +15,7 @@ import ApiService from "../../src/api/ApiService";
 import AnimatedDrawer from "../../src/components/AnimatedDrawer";
 import CategoryCard from "../../src/components/CategoryCard";
 import DocumentCard from "../../src/components/DocumentCard";
+import FileManager from "../../src/components/FileManager";
 import Icon from "../../src/components/Icon";
 import SearchModal from "../../src/components/SearchModal";
 import SubcategoryCard from "../../src/components/SubcategoryCard";
@@ -23,7 +24,7 @@ import { categories, documentSubcategories } from "../../src/constants/categorie
 import LoginScreen from "../../src/screens/LoginScreen";
 import StorageOS from "../../src/storage/StorageOS";
 import { styles } from "../../src/styles";
-import { Document, SubcategoryItem, User } from "../../src/types";
+import { Document, FileSystemItem, SubcategoryItem, User } from "../../src/types";
 
 // API Configuration - Change this to your backend server URL
 const API_BASE_URL = "http://192.168.0.109:3000/api"; // For development
@@ -139,7 +140,7 @@ export default function EnhancedDigitalArchivesV4() {
     setLoading(false);
   };
 
-  const handleDownload = async (document: Document) => {
+  const handleDownload = async (fileSystemItem: FileSystemItem) => {
     try {
       const token = await StorageOS.getItem("authToken");
       if (!token) {
@@ -149,7 +150,7 @@ export default function EnhancedDigitalArchivesV4() {
 
       // Gọi API download với Authorization header
       const response = await fetch(
-        `${API_BASE_URL}/documents/${document.id}/download`,
+        `${API_BASE_URL}/documents/${fileSystemItem.id}/download`,
         {
           method: "GET",
           headers: {
@@ -173,9 +174,9 @@ export default function EnhancedDigitalArchivesV4() {
           const base64data = (reader.result as string).split(",")[1];
 
           // Tên file
-          let fileName = document.filename;
-          if (!fileName.includes(".") && document.file_type) {
-            const ext = document.file_type.split("/")[1];
+          let fileName = fileSystemItem.name;
+          if (!fileName.includes(".") && fileSystemItem.file_type) {
+            const ext = fileSystemItem.file_type.split("/")[1];
             fileName = `${fileName}.${ext}`;
           }
 
@@ -192,7 +193,7 @@ export default function EnhancedDigitalArchivesV4() {
             const uri = await FileSystem.StorageAccessFramework.createFileAsync(
               permissions.directoryUri,
               fileName,
-              document.file_type || "application/octet-stream"
+              fileSystemItem.file_type || "application/octet-stream"
             );
             await FileSystem.writeAsStringAsync(uri, base64data, {
               encoding: FileSystem.EncodingType.Base64,
@@ -439,79 +440,88 @@ export default function EnhancedDigitalArchivesV4() {
     );
   };
 
+  // const renderSubcategoryView = () => (
+  //   <ScrollView
+  //     style={styles.scrollView}
+  //     contentContainerStyle={styles.scrollContent}
+  //   >
+  //     <View style={styles.subcategoryHeader}>
+  //       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+  //         <Icon name="chevron-back" size={20} color="#667eea" />
+  //         <Text style={styles.backButtonText}>Quay lại</Text>
+  //       </TouchableOpacity>
+  //       <Text style={styles.subcategoryTitle}>
+  //         {selectedSubcategory?.title}
+  //       </Text>
+  //       <Text style={styles.subcategorySubtitle}>
+  //         {selectedSubcategory?.description}
+  //       </Text>
+  //     </View>
+
+  //     {canUpload() && (
+  //       <View style={styles.uploadSection}>
+  //         <TouchableOpacity
+  //           style={styles.uploadFloatingButton}
+  //           onPress={() => setIsUploadModalOpen(true)}
+  //         >
+  //           <Icon name="upload" size={24} color="white" />
+  //           <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
+  //         </TouchableOpacity>
+  //       </View>
+  //     )}
+
+  //     <View style={styles.documentsContainer}>
+  //       <View style={styles.documentsHeader}>
+  //         <Text style={styles.documentsTitle}>
+  //           Tài liệu ({documents.length})
+  //         </Text>
+  //         <View style={styles.documentsStats}>
+  //           <Text style={styles.documentsStatsText}>
+  //             {documents.reduce((total, doc) => total + doc.file_size, 0) > 0 &&
+  //               `${(
+  //                 documents.reduce((total, doc) => total + doc.file_size, 0) /
+  //                 (1024 * 1024)
+  //               ).toFixed(1)} MB`}
+  //           </Text>
+  //         </View>
+  //       </View>
+
+  //       {loading ? (
+  //         <View style={styles.loadingContainer}>
+  //           <ActivityIndicator size="large" color="#667eea" />
+  //           <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
+  //         </View>
+  //       ) : documents.length > 0 ? (
+  //         <View style={styles.enhancedDocumentsGrid}>
+  //           {documents.map((doc) => (
+  //             <DocumentCard
+  //               key={doc.id}
+  //               document={doc}
+  //               onDownload={() => handleDownload(doc)}
+  //             />
+  //           ))}
+  //         </View>
+  //       ) : (
+  //         <View style={styles.emptyState}>
+  //           <Icon name="folder" size={64} color="#cbd5e1" />
+  //           <Text style={styles.emptyStateTitle}>Chưa có tài liệu</Text>
+  //           <Text style={styles.emptyStateText}>
+  //             Danh mục này chưa có tài liệu nào được tải lên
+  //           </Text>
+  //         </View>
+  //       )}
+  //     </View>
+  //   </ScrollView>
+  // );
   const renderSubcategoryView = () => (
-    <ScrollView
-      style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
-    >
-      <View style={styles.subcategoryHeader}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Icon name="chevron-back" size={20} color="#667eea" />
-          <Text style={styles.backButtonText}>Quay lại</Text>
-        </TouchableOpacity>
-        <Text style={styles.subcategoryTitle}>
-          {selectedSubcategory?.title}
-        </Text>
-        <Text style={styles.subcategorySubtitle}>
-          {selectedSubcategory?.description}
-        </Text>
-      </View>
-
-      {canUpload() && (
-        <View style={styles.uploadSection}>
-          <TouchableOpacity
-            style={styles.uploadFloatingButton}
-            onPress={() => setIsUploadModalOpen(true)}
-          >
-            <Icon name="upload" size={24} color="white" />
-            <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
-      <View style={styles.documentsContainer}>
-        <View style={styles.documentsHeader}>
-          <Text style={styles.documentsTitle}>
-            Tài liệu ({documents.length})
-          </Text>
-          <View style={styles.documentsStats}>
-            <Text style={styles.documentsStatsText}>
-              {documents.reduce((total, doc) => total + doc.file_size, 0) > 0 &&
-                `${(
-                  documents.reduce((total, doc) => total + doc.file_size, 0) /
-                  (1024 * 1024)
-                ).toFixed(1)} MB`}
-            </Text>
-          </View>
-        </View>
-
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#667eea" />
-            <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
-          </View>
-        ) : documents.length > 0 ? (
-          <View style={styles.enhancedDocumentsGrid}>
-            {documents.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                onDownload={() => handleDownload(doc)}
-              />
-            ))}
-          </View>
-        ) : (
-          <View style={styles.emptyState}>
-            <Icon name="folder" size={64} color="#cbd5e1" />
-            <Text style={styles.emptyStateTitle}>Chưa có tài liệu</Text>
-            <Text style={styles.emptyStateText}>
-              Danh mục này chưa có tài liệu nào được tải lên
-            </Text>
-          </View>
-        )}
-      </View>
-    </ScrollView>
-  );
+  <FileManager
+    category={selectedCategory!}
+    categoryName={getCurrentCategory()}
+    onFileDownload={handleDownload}
+    canUpload={canUpload()}
+    onUploadRequest={() => setIsUploadModalOpen(true)}
+  />
+);
 
   const renderSearchView = () => (
     <ScrollView

@@ -871,4 +871,227 @@ export const styles = StyleSheet.create({
       color: '#64748b',
       marginTop: 12,
     },
+    // Thêm vào file styles.ts
+
+// File Manager Styles
+fileManagerContainer: {
+  flex: 1,
+  backgroundColor: '#fff',
+},
+
+fileManagerToolbar: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingHorizontal: 16,
+  paddingVertical: 12,
+  backgroundColor: '#f8fafc',
+  borderBottomWidth: 1,
+  borderBottomColor: '#e2e8f0',
+},
+
+toolbarLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+toolbarRight: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+toolbarButton: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 12,
+  paddingVertical: 8,
+  backgroundColor: '#fff',
+  borderRadius: 6,
+  marginRight: 8,
+  borderWidth: 1,
+  borderColor: '#e2e8f0',
+},
+
+toolbarButtonText: {
+  marginLeft: 6,
+  fontSize: 14,
+  color: '#334155',
+  fontWeight: '500',
+},
+
+viewModeButton: {
+  padding: 8,
+  marginLeft: 4,
+  borderRadius: 4,
+},
+
+viewModeActive: {
+  backgroundColor: '#e0e7ff',
+},
+
+breadcrumbContainer: {
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: '#fff',
+  borderBottomWidth: 1,
+  borderBottomColor: '#f1f5f9',
+},
+
+breadcrumbItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  marginRight: 8,
+},
+
+breadcrumbText: {
+  fontSize: 14,
+  color: '#667eea',
+  marginRight: 4,
+},
+
+fileList: {
+  flex: 1,
+  backgroundColor: '#fff',
+},
+
+fileListView: {
+  padding: 16,
+},
+
+fileGrid: {
+  flexDirection: 'row',
+  flexWrap: 'wrap',
+  padding: 16,
+},
+
+fileListItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  marginBottom: 4,
+  backgroundColor: '#fff',
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#f1f5f9',
+},
+
+fileGridItem: {
+  width: '47%',
+  aspectRatio: 1,
+  margin: '1.5%',
+  padding: 16,
+  backgroundColor: '#fff',
+  borderRadius: 12,
+  borderWidth: 1,
+  borderColor: '#f1f5f9',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+fileItemIcon: {
+  marginRight: 12,
+},
+
+fileIcon: {
+  fontSize: 24,
+},
+
+fileItemDetails: {
+  flex: 1,
+},
+
+fileItemName: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#1e293b',
+  marginBottom: 4,
+},
+
+fileItemMeta: {
+  flexDirection: 'row',
+  alignItems: 'center',
+},
+
+fileItemMetaText: {
+  fontSize: 12,
+  color: '#64748b',
+  marginRight: 12,
+},
+
+emptyFolder: {
+  flex: 1,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingVertical: 60,
+},
+
+emptyFolderText: {
+  fontSize: 16,
+  color: '#94a3b8',
+  marginTop: 16,
+},
+
+// Modal styles for file operations
+modalOverlayFolder: {
+  flex: 1,
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  justifyContent: 'center',
+  alignItems: 'center',
+},
+
+modalContent: {
+  backgroundColor: '#fff',
+  margin: 20,
+  padding: 20,
+  borderRadius: 12,
+  minWidth: 280,
+},
+
+modalTitle: {
+  fontSize: 18,
+  fontWeight: '600',
+  color: '#1e293b',
+  marginBottom: 16,
+  textAlign: 'center',
+},
+
+modalTextInput: {
+  borderWidth: 1,
+  borderColor: '#d1d5db',
+  borderRadius: 8,
+  paddingHorizontal: 12,
+  paddingVertical: 10,
+  fontSize: 16,
+  marginBottom: 20,
+},
+
+modalButtons: {
+  flexDirection: 'row',
+  justifyContent: 'flex-end',
+},
+
+modalCancelButton: {
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  marginRight: 8,
+},
+
+modalCancelText: {
+  fontSize: 16,
+  color: '#64748b',
+},
+
+modalConfirmButton: {
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: '#667eea',
+  borderRadius: 6,
+},
+
+modalConfirmText: {
+  fontSize: 16,
+  color: '#fff',
+  fontWeight: '500',
+},
 });

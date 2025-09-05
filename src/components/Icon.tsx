@@ -47,6 +47,8 @@ const Icon: React.FC<{ name: string; size?: number; color?: string }> = ({
     training: "🎯",
     party: "🏛️",
     logout: "🚪",
+    list: "☰",
+    grid: "⊞",
   };
 
   const iconChar = iconMap[name] || "•";

@@ -38,4 +38,32 @@ export interface Document {
   file_size: number;
   file_type: string;
   uploader_name?: string;
+  folderId?: string | null;
+}
+
+export interface FileSystemItem {
+  id: string;
+  name: string;
+  type: 'folder' | 'file';
+  parent_id: string | null;
+  path: string;
+  file_size?: number;
+  file_type?: string;
+  author?: string;
+  created_at: string;
+  updated_by_name?: string;
+}
+
+export interface BreadcrumbItem {
+  id: string | null;
+  name: string;
+  path: string;
+}
+
+export interface FileManagerProps {
+  category: string;
+  categoryName: string;
+  onFileDownload: (item: FileSystemItem) => void;
+  canUpload: boolean;
+  onUploadRequest: (folderId: string | null) => void;
 }

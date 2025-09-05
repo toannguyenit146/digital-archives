@@ -1,6 +1,6 @@
-import StorageOS from '@/src/storage/StorageOS';
+import StorageOS from "../../src/storage/StorageOS";
 
-const API_BASE_URL = 'http://192.168.0.109:3000/api'; // dev
+const API_BASE_URL = "http://192.168.0.109:3000/api"; // dev
 // const API_BASE_URL = 'http://YOUR_SERVER_IP:3000/api'; // prod
 
 class ApiService {
@@ -79,31 +79,31 @@ class ApiService {
     return this.makeRequest(`/documents?${params.toString()}`);
   }
 
-  static async uploadDocument(formData: FormData) {
-    // Extract category and subcategory from formData
-    const categoryKey = formData.get("category") as string;
-    const subcategoryKey = formData.get("subcategory") as string;
-    const token = await StorageOS.getItem("authToken");
-    const url = `${API_BASE_URL}/documents/upload?category=${encodeURIComponent(
-      categoryKey || "general"
-    )}&subcategory=${encodeURIComponent(subcategoryKey || "general")}`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        // Don't set Content-Type for FormData, let the browser set it
-      },
-      body: formData,
-    });
+  // static async uploadDocument(formData: FormData) {
+  //   // Extract category and subcategory from formData
+  //   const categoryKey = formData.get("category") as string;
+  //   const subcategoryKey = formData.get("subcategory") as string;
+  //   const token = await StorageOS.getItem("authToken");
+  //   const url = `${API_BASE_URL}/file-system/upload?category=${encodeURIComponent(
+  //     categoryKey || "general"
+  //   )}&subcategory=${encodeURIComponent(subcategoryKey || "general")}`;
+  //   const response = await fetch(url, {
+  //     method: "POST",
+  //     headers: {
+  //       Authorization: `Bearer ${token}`,
+  //       // Don't set Content-Type for FormData, let the browser set it
+  //     },
+  //     body: formData,
+  //   });
 
-    const data = await response.json();
+  //   const data = await response.json();
 
-    if (!response.ok) {
-      throw new Error(data.error || "Upload failed");
-    }
+  //   if (!response.ok) {
+  //     throw new Error(data.error || "Upload failed");
+  //   }
 
-    return data;
-  }
+  //   return data;
+  // }
 
   static async downloadDocument(documentId: any) {
     const token = await StorageOS.getItem("authToken");
@@ -141,6 +141,84 @@ class ApiService {
     if (subcategory) params.append("subcategory", subcategory);
 
     return this.makeRequest(`/documents/search?${params.toString()}`);
+  }
+
+  // Thêm các method mới vào ApiService.ts
+
+  // Get folder contents (files and subfolders)
+  static async getFolderContents(folderId: string | null, category?: string) {
+    const params = new URLSearchParams();
+    if (folderId) params.append("parent_id", folderId);
+    if (category) params.append("category", category);
+
+    return this.makeRequest(`/file-system/contents?${params.toString()}`);
+  }
+
+  // Create new folder
+  static async createFolder(
+    name: string,
+    parentId: string | null,
+    category?: string
+  ) {
+    return this.makeRequest("/file-system/folder", {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        parent_id: parentId,
+        category,
+      }),
+    });
+  }
+
+  // Rename file or folder
+  static async renameItem(itemId: string, newName: string) {
+    return this.makeRequest(`/file-system/${itemId}/rename`, {
+      method: "PATCH",
+      body: JSON.stringify({ name: newName }),
+    });
+  }
+
+  // Move file or folder
+  static async moveItem(itemId: string, newParentId: string | null) {
+    return this.makeRequest(`/file-system/${itemId}/move`, {
+      method: "PATCH",
+      body: JSON.stringify({ parent_id: newParentId }),
+    });
+  }
+
+  // Delete file or folder
+  static async deleteItem(itemId: string) {
+    return this.makeRequest(`/file-system/${itemId}`, {
+      method: "DELETE",
+    });
+  }
+
+  // Get breadcrumb path
+  static async getBreadcrumb(folderId: string | null) {
+    if (!folderId) return this.makeRequest("/file-system/breadcrumb");
+    return this.makeRequest(`/file-system/breadcrumb?folder_id=${folderId}`);
+  }
+
+  // Upload file to specific folder
+  static async uploadFileToFolder(formData: FormData, folderId: string | null) {
+    const token = await StorageOS.getItem("authToken");
+    const params = new URLSearchParams();
+    if (folderId) params.append("parent_id", folderId);
+
+    const url = `${API_BASE_URL}/file-system/upload?${params.toString()}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Upload failed");
+    }
+    return data;
   }
 }
 
