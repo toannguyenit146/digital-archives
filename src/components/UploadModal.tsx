@@ -1,14 +1,14 @@
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import ApiService from '../../src/api/ApiService';
 import { categories, documentSubcategories } from '../../src/constants/categories';
@@ -100,7 +100,7 @@ const UploadModal: React.FC<{
         "subcategory:",
         subcategoryKey
       );
-      const response = await ApiService.uploadDocument(formData);
+      const response = await ApiService.uploadFileToFolder(formData, folderId);
 
       clearInterval(progressInterval);
       setUploadProgress(100);
