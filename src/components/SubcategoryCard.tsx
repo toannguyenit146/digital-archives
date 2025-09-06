@@ -13,7 +13,6 @@ const SubcategoryCard: React.FC<{
       <Icon name={item.icon} size={20} color="#667eea" />
       <Text style={styles.subcategoryTitle}>{item.title}</Text>
       <Text style={styles.subcategoryDescription}>{item.description}</Text>
-      <Icon name="chevron-forward" size={16} color="#64748b" />
     </View>
   </TouchableOpacity>
 );

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-    Modal,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  Modal,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { styles } from '../styles';
 import Icon from './Icon';
@@ -12,13 +12,13 @@ import Icon from './Icon';
 const SearchModal: React.FC<{
   isVisible: boolean;
   onClose: () => void;
-  onSearch: (query: string) => void;
+  onSearch: (query: string, category: string) => void;
 }> = ({ isVisible, onClose, onSearch }) => {
   const [searchQuery, setSearchQuery] = useState("");
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      onSearch(searchQuery.trim());
+      onSearch(searchQuery.trim(), "tailieu");
       onClose();
     }
   };

@@ -33,6 +33,32 @@ class ApiService {
     }
   }
 
+  static async makePublicRequest(endpoint: string, options = {}) {
+    try {
+      const config = {
+        headers: {
+          "Content-Type": "application/json",
+          ...options.headers,
+        },
+        ...options,
+      };
+      console.log(
+        "[" + new Date().toISOString() + "] " + "Public Fetch Config:",
+        config
+      );
+      console.log("Fetching from:", `${API_BASE_URL}${endpoint}`);
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Network error");
+      }
+      return data;
+    } catch (error) {
+      console.error("Public API Request Error:", error);
+      throw error;
+    }
+  }
+
   static async login(username: string, password: string) {
     try {
       console.log("Login Payload:", { username, password });
@@ -62,89 +88,16 @@ class ApiService {
     }
   }
 
-  static async getDocuments(
-    category: string | undefined,
-    subcategory: string | undefined,
-    page = 1,
-    limit = 20
-  ) {
-    const params = new URLSearchParams({
-      page: page.toString(),
-      limit: limit.toString(),
-    });
-
-    if (category) params.append("category", category);
-    if (subcategory) params.append("subcategory", subcategory);
-
-    return this.makeRequest(`/documents?${params.toString()}`);
+  // FILE SYSTEM API METHODS
+  // Get Main Categories
+  static async getCategories() {
+    return this.makePublicRequest("/file-system/main-categories");
   }
 
-  // static async uploadDocument(formData: FormData) {
-  //   // Extract category and subcategory from formData
-  //   const categoryKey = formData.get("category") as string;
-  //   const subcategoryKey = formData.get("subcategory") as string;
-  //   const token = await StorageOS.getItem("authToken");
-  //   const url = `${API_BASE_URL}/file-system/upload?category=${encodeURIComponent(
-  //     categoryKey || "general"
-  //   )}&subcategory=${encodeURIComponent(subcategoryKey || "general")}`;
-  //   const response = await fetch(url, {
-  //     method: "POST",
-  //     headers: {
-  //       Authorization: `Bearer ${token}`,
-  //       // Don't set Content-Type for FormData, let the browser set it
-  //     },
-  //     body: formData,
-  //   });
-
-  //   const data = await response.json();
-
-  //   if (!response.ok) {
-  //     throw new Error(data.error || "Upload failed");
-  //   }
-
-  //   return data;
-  // }
-
-  static async downloadDocument(documentId: any) {
-    const token = await StorageOS.getItem("authToken");
-
-    const response = await fetch(
-      `${API_BASE_URL}/documents/${documentId}/download`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.error || "Download failed");
-    }
-
-    return response;
+  // Get subcategories of Tai lieu
+  static async getSubcategoriesOfDocument() {
+    return this.makePublicRequest("/file-system/sub-categories-document");
   }
-
-  // Add new method for getting download URL
-  static async getDownloadUrl(documentId: any) {
-    const token = await StorageOS.getItem("authToken");
-    return `${API_BASE_URL}/documents/${documentId}/download?token=${token}`;
-  }
-
-  static async searchDocuments(
-    query: string,
-    category: string | undefined,
-    subcategory: string | undefined
-  ) {
-    const params = new URLSearchParams({ query });
-    if (category) params.append("category", category);
-    if (subcategory) params.append("subcategory", subcategory);
-
-    return this.makeRequest(`/documents/search?${params.toString()}`);
-  }
-
-  // Thêm các method mới vào ApiService.ts
-
   // Get folder contents (files and subfolders)
   static async getFolderContents(folderId: string | null, category?: string) {
     const params = new URLSearchParams();
@@ -195,7 +148,7 @@ class ApiService {
 
   // Get breadcrumb path
   static async getBreadcrumb(folderId: string | null) {
-    if (!folderId) return this.makeRequest("/file-system/breadcrumb");
+    if (!folderId) return { success: true, breadcrumb: [] };
     return this.makeRequest(`/file-system/breadcrumb?folder_id=${folderId}`);
   }
 
@@ -219,6 +172,41 @@ class ApiService {
       throw new Error(data.error || "Upload failed");
     }
     return data;
+  }
+
+  // Search files
+  static async searchFiles(query: string, category?: string) {
+    const params = new URLSearchParams({ query });
+    if (category) params.append("category", category);
+
+    return this.makeRequest(`/file-system/search?${params.toString()}`);
+  }
+
+  // Download file
+  static async downloadFile(fileId: string) {
+    const token = await StorageOS.getItem("authToken");
+
+    const response = await fetch(
+      `${API_BASE_URL}/file-system/${fileId}/download`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || "Download failed");
+    }
+
+    return response;
+  }
+
+  // Get download URL
+  static async getDownloadUrl(fileId: string) {
+    const token = await StorageOS.getItem("authToken");
+    return `${API_BASE_URL}/file-system/${fileId}/download?token=${token}`;
   }
 }
 

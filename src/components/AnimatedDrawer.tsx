@@ -1,33 +1,33 @@
 import React, { useRef } from 'react';
 import {
-    Animated,
-    Dimensions,
-    Modal,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  Animated,
+  Dimensions,
+  Modal,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { styles } from '../../src/styles';
 import { User } from '../../src/types';
-import { categories } from '../constants/categories';
 import Icon from './Icon';
 
 const { width, height } = Dimensions.get("window");
 
 const menuItems = [
   { id: "home", title: "Trang chủ", icon: "home" },
-  { id: "separator1", title: "--- Danh mục ---", icon: null },
-  ...categories.map((cat) => ({
-    id: cat.id,
-    title: cat.title,
-    icon: cat.icon,
-    isCategory: true,
-  })),
-  { id: "separator2", title: "--- Khác ---", icon: null },
+  // { id: "separator1", title: "--- Danh mục ---", icon: null },
+  // ...categories.map((cat) => ({
+  //   id: cat.id,
+  //   title: cat.title,
+  //   icon: cat.icon,
+  //   isCategory: true,
+  // })),
+  // { id: "separator2", title: "--- Khác ---", icon: null },
   { id: "settings", title: "Cài đặt", icon: "settings" },
   { id: "logout", title: "Đăng xuất", icon: "logout" },
 ];
+console.log("Menu Items:", menuItems);
 
 const AnimatedDrawer: React.FC<{
   isVisible: boolean;
@@ -122,7 +122,7 @@ const AnimatedDrawer: React.FC<{
 
           <View style={styles.drawerFooter}>
             <Text style={styles.footerText}>Version 1.0.0</Text>
-            <Text style={styles.footerText}>© 2025 Digital Archives</Text>
+            <Text style={styles.footerText}>© 2025 Ban Tuyên Huấn - Lữ đoàn 146</Text>
           </View>
         </Animated.View>
 

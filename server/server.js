@@ -429,6 +429,58 @@ app.post('/api/auth/login', async (req, res) => {
 
 // FILE SYSTEM ROUTES
 
+// Get Main Categories
+app.get('/api/file-system/main-categories', async (req, res) => {
+  try {
+    const [categories] = await db.query(
+      `SELECT id, name, filename, title, author, file_url, file_path, file_size, category FROM file_system` +
+      ` WHERE parent_id IS NULL AND type = "folder" ORDER BY file_size ASC`
+    );
+    res.json({
+      success: true,
+      categories: categories.map(cat => ({
+        id: cat.id,
+        title: cat.name,
+        color: cat.title,
+        icon: cat.author,
+        description: cat.filename,
+        hasSubcategories: cat.file_url,
+        allowUpload: cat.file_path,
+        keyName: cat.category
+      }))
+    });
+  } catch (error) {
+    console.error('Get categories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get subcategories of Tai lieu
+app.get('/api/file-system/sub-categories-document', async (req, res) => {
+  try {
+    const [subcategories] = await db.query(
+      `SELECT id, name, filename, title, author, file_size, parent_id FROM file_system WHERE 
+      parent_id =(SELECT id FROM file_system fs WHERE fs.parent_id IS NULL AND fs.file_url = 'true')
+      AND type = "folder" AND category = "tailieu" ORDER BY file_size ASC`
+    );
+    res.json({
+      success: true,
+      subcategories: subcategories.map(sub => ({
+        id: sub.id,
+        title: sub.name,
+        icon: sub.author,
+        description: sub.filename,
+        parentId: sub.parent_id,
+        keyName: sub.title,
+      }))
+    });
+  } catch (error) {
+    console.error('Get subcategories error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
 // Get folder contents
 app.get('/api/file-system/contents', authenticateToken, async (req, res) => {
   try {
@@ -827,156 +879,6 @@ app.get('/api/file-system/:id/download', authenticateToken, async (req, res) => 
   }
 });
 
-// LEGACY ROUTES (for backward compatibility)
-
-// Get documents by category (legacy)
-app.get('/api/documents', authenticateToken, async (req, res) => {
-  try {
-    const { category, subcategory, page = 1, limit = 20 } = req.query;
-    
-    let query = `
-      SELECT fs.*, u.full_name as uploader_name
-      FROM file_system fs
-      LEFT JOIN users u ON fs.uploaded_by = u.id
-      WHERE fs.type = 'file'
-    `;
-    let params = [];
-
-    if (category) {
-      query += ' AND fs.category = ?';
-      params.push(category);
-    }
-
-    if (subcategory) {
-      query += ' AND fs.subcategory = ?';
-      params.push(subcategory);
-    }
-
-    query += ' ORDER BY fs.created_at DESC';
-    
-    // Add pagination
-    const offset = (page - 1) * limit;
-    query += ' LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
-
-    const [documents] = await db.query(query, params);
-    
-    // Get total count for pagination
-    let countQuery = 'SELECT COUNT(*) as total FROM file_system WHERE type = "file"';
-    let countParams = [];
-
-    if (category) {
-      countQuery += ' AND category = ?';
-      countParams.push(category);
-    }
-
-    if (subcategory) {
-      countQuery += ' AND subcategory = ?';
-      countParams.push(subcategory);
-    }
-
-    const [countResult] = await db.query(countQuery, countParams);
-    const total = countResult[0].total;
-
-    res.json({
-      success: true,
-      documents: documents.map(doc => ({
-        id: doc.id,
-        title: doc.title || doc.name,
-        filename: doc.filename || doc.name,
-        author: doc.author,
-        category: doc.category,
-        subcategory: doc.subcategory,
-        file_url: doc.file_url,
-        file_size: doc.file_size,
-        file_type: doc.file_type,
-        created_at: doc.created_at,
-        uploader_name: doc.uploader_name
-      })),
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
-    
-  } catch (error) {
-    console.error('Get documents error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Legacy download route
-app.get('/api/documents/:id/download', authenticateToken, async (req, res) => {
-  // Redirect to new file system download endpoint
-  return res.redirect(`/api/file-system/${req.params.id}/download`);
-});
-
-// Search files
-app.get('/api/documents/search', authenticateToken, async (req, res) => {
-  try {
-    const { query, category, subcategory, page = 1, limit = 20 } = req.query;
-
-    if (!query) {
-      return res.status(400).json({ error: 'Search query is required' });
-    }
-
-    let searchQuery = `
-      SELECT fs.*, u.full_name as uploader_name
-      FROM file_system fs
-      LEFT JOIN users u ON fs.uploaded_by = u.id
-      WHERE fs.type = 'file' AND (fs.name LIKE ? OR fs.title LIKE ? OR fs.author LIKE ?)
-    `;
-    let params = [`%${query}%`, `%${query}%`, `%${query}%`];
-
-    if (category) {
-      searchQuery += ' AND fs.category = ?';
-      params.push(category);
-    }
-
-    if (subcategory) {
-      searchQuery += ' AND fs.subcategory = ?';
-      params.push(subcategory);
-    }
-
-    searchQuery += ' ORDER BY fs.created_at DESC';
-    
-    // Add pagination
-    const offset = (page - 1) * limit;
-    searchQuery += ' LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
-
-    const [documents] = await db.query(searchQuery, params);
-
-    res.json({
-      success: true,
-      documents: documents.map(doc => ({
-        id: doc.id,
-        title: doc.title || doc.name,
-        filename: doc.filename || doc.name,
-        author: doc.author,
-        category: doc.category,
-        subcategory: doc.subcategory,
-        file_url: doc.file_url,
-        file_size: doc.file_size,
-        file_type: doc.file_type,
-        created_at: doc.created_at,
-        uploader_name: doc.uploader_name
-      })),
-      query,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit)
-      }
-    });
-
-  } catch (error) {
-    console.error('Search error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // Get statistics
 app.get('/api/stats', authenticateToken, async (req, res) => {
   try {
@@ -1031,7 +933,6 @@ async function startServer() {
       console.log(`   Health: http://192.168.0.109:${PORT}/health`);
       console.log(`   Auth: http://192.168.0.109:${PORT}/api/auth/login`);
       console.log(`   File System: http://192.168.0.109:${PORT}/api/file-system/contents`);
-      console.log(`   Legacy Docs: http://192.168.0.109:${PORT}/api/documents`);
       console.log(`   Upload: http://192.168.0.109:${PORT}/api/file-system/upload`);
     });
   } catch (error) {

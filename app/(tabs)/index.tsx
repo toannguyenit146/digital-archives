@@ -43,8 +43,9 @@ export default function EnhancedDigitalArchivesV4() {
   >("home");
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<Document[]>([]);
+  const [searchResults, setSearchResults] = useState<FileSystemItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -97,9 +98,9 @@ export default function EnhancedDigitalArchivesV4() {
         (sub) => sub.keyName === subcategoryId
       );
 
-      const response = await ApiService.getDocuments(
-        category?.keyName,
-        subcategory?.keyName
+      const response = await ApiService.getFolderContents(
+        currentFolderId,
+        category?.keyName || subcategory?.keyName
       );
 
       if (response.success) {
@@ -115,16 +116,15 @@ export default function EnhancedDigitalArchivesV4() {
     setLoading(false);
   };
 
-  const handleSearch = async (query: string) => {
+  const handleSearch = async (query: string, category: string) => {
     setSearchQuery(query);
     setLoading(true);
     setCurrentView("search");
 
     try {
-      const response = await ApiService.searchDocuments(
+      const response = await ApiService.searchFiles(
         query,
-        undefined,
-        undefined
+        category
       );
 
       if (response.success) {
@@ -232,7 +232,7 @@ export default function EnhancedDigitalArchivesV4() {
   }
 
   const handleCategoryPress = (categoryId: string, title: string) => {
-    console.log(`Selected category: ${title}`);
+    console.log(`Selected category: ${categoryId} - ${title}`);
     setSelectedCategory(categoryId);
 
     const category = categories.find((cat) => cat.id === categoryId);
@@ -439,87 +439,18 @@ export default function EnhancedDigitalArchivesV4() {
       </ScrollView>
     );
   };
-
-  // const renderSubcategoryView = () => (
-  //   <ScrollView
-  //     style={styles.scrollView}
-  //     contentContainerStyle={styles.scrollContent}
-  //   >
-  //     <View style={styles.subcategoryHeader}>
-  //       <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-  //         <Icon name="chevron-back" size={20} color="#667eea" />
-  //         <Text style={styles.backButtonText}>Quay lại</Text>
-  //       </TouchableOpacity>
-  //       <Text style={styles.subcategoryTitle}>
-  //         {selectedSubcategory?.title}
-  //       </Text>
-  //       <Text style={styles.subcategorySubtitle}>
-  //         {selectedSubcategory?.description}
-  //       </Text>
-  //     </View>
-
-  //     {canUpload() && (
-  //       <View style={styles.uploadSection}>
-  //         <TouchableOpacity
-  //           style={styles.uploadFloatingButton}
-  //           onPress={() => setIsUploadModalOpen(true)}
-  //         >
-  //           <Icon name="upload" size={24} color="white" />
-  //           <Text style={styles.uploadFloatingText}>Tải lên tài liệu</Text>
-  //         </TouchableOpacity>
-  //       </View>
-  //     )}
-
-  //     <View style={styles.documentsContainer}>
-  //       <View style={styles.documentsHeader}>
-  //         <Text style={styles.documentsTitle}>
-  //           Tài liệu ({documents.length})
-  //         </Text>
-  //         <View style={styles.documentsStats}>
-  //           <Text style={styles.documentsStatsText}>
-  //             {documents.reduce((total, doc) => total + doc.file_size, 0) > 0 &&
-  //               `${(
-  //                 documents.reduce((total, doc) => total + doc.file_size, 0) /
-  //                 (1024 * 1024)
-  //               ).toFixed(1)} MB`}
-  //           </Text>
-  //         </View>
-  //       </View>
-
-  //       {loading ? (
-  //         <View style={styles.loadingContainer}>
-  //           <ActivityIndicator size="large" color="#667eea" />
-  //           <Text style={styles.loadingText}>Đang tải tài liệu...</Text>
-  //         </View>
-  //       ) : documents.length > 0 ? (
-  //         <View style={styles.enhancedDocumentsGrid}>
-  //           {documents.map((doc) => (
-  //             <DocumentCard
-  //               key={doc.id}
-  //               document={doc}
-  //               onDownload={() => handleDownload(doc)}
-  //             />
-  //           ))}
-  //         </View>
-  //       ) : (
-  //         <View style={styles.emptyState}>
-  //           <Icon name="folder" size={64} color="#cbd5e1" />
-  //           <Text style={styles.emptyStateTitle}>Chưa có tài liệu</Text>
-  //           <Text style={styles.emptyStateText}>
-  //             Danh mục này chưa có tài liệu nào được tải lên
-  //           </Text>
-  //         </View>
-  //       )}
-  //     </View>
-  //   </ScrollView>
-  // );
-  const renderSubcategoryView = () => (
+  
+const renderSubcategoryView = () => (
   <FileManager
     category={selectedCategory!}
     categoryName={getCurrentCategory()}
     onFileDownload={handleDownload}
     canUpload={canUpload()}
-    onUploadRequest={() => setIsUploadModalOpen(true)}
+    onUploadRequest={(folderId) => {
+      // Lưu currentFolderId để truyền vào UploadModal
+      setCurrentFolderId(folderId);
+      setIsUploadModalOpen(true);
+    }}
   />
 );
 
@@ -623,9 +554,11 @@ export default function EnhancedDigitalArchivesV4() {
         category={getCurrentCategory()}
         subcategory={getCurrentSubcategory()}
         user={user}
+        folderId={currentFolderId} // Truyền folderId vào
         onUploadSuccess={() => {
+          // Refresh FileManager content
           if (selectedCategory) {
-            loadDocuments(selectedCategory, selectedSubcategory?.keyName);
+            // FileManager sẽ tự động refresh khi props thay đổi
           }
         }}
       />

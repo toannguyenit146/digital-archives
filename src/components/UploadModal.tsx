@@ -11,7 +11,6 @@ import {
   View,
 } from 'react-native';
 import ApiService from '../../src/api/ApiService';
-import { categories, documentSubcategories } from '../../src/constants/categories';
 import { User } from '../../src/types';
 import { styles } from '../styles';
 import Icon from './Icon';
@@ -23,7 +22,8 @@ const UploadModal: React.FC<{
   subcategory?: string;
   user: User;
   onUploadSuccess: () => void;
-}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess }) => {
+  folderId?: string | null; // Add folderId prop
+}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess, folderId = null }) => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -67,14 +67,6 @@ const UploadModal: React.FC<{
     setUploadProgress(0);
 
     try {
-      // Get category/subcategory keys
-      const categoryKey = categories.find(
-        (cat) => cat.title === category
-      )?.keyName;
-      const subcategoryKey = documentSubcategories.find(
-        (sub) => sub.title === subcategory
-      )?.keyName;
-
       // Create FormData
       const formData = new FormData();
       formData.append("file", {
@@ -84,9 +76,9 @@ const UploadModal: React.FC<{
       } as any);
       formData.append("title", documentTitle);
       formData.append("author", authorName);
-      formData.append("category", categoryKey || "general");
-      if (subcategoryKey) {
-        formData.append("subcategory", subcategoryKey);
+      formData.append("category", category);
+      if (subcategory) {
+        formData.append("subcategory", subcategory);
       }
 
       // Simulate progress
@@ -94,12 +86,7 @@ const UploadModal: React.FC<{
         setUploadProgress((prev) => Math.min(prev + 10, 90));
       }, 200);
 
-      console.log(
-        "Uploading to category:",
-        categoryKey,
-        "subcategory:",
-        subcategoryKey
-      );
+      console.log("Uploading to folderId:", folderId);
       const response = await ApiService.uploadFileToFolder(formData, folderId);
 
       clearInterval(progressInterval);

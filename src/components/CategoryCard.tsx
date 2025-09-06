@@ -20,9 +20,6 @@ const CategoryCard: React.FC<{
       </View>
       <Text style={styles.cardTitle}>{item.title}</Text>
       <Text style={styles.cardDescription}>{item.description}</Text>
-      <View style={styles.cardArrow}>
-        <Icon name="chevron-forward" size={20} color="white" />
-      </View>
     </View>
   </TouchableOpacity>
 );
