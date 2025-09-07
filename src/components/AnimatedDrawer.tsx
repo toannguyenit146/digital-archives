@@ -27,7 +27,6 @@ const menuItems = [
   { id: "settings", title: "Cài đặt", icon: "settings" },
   { id: "logout", title: "Đăng xuất", icon: "logout" },
 ];
-console.log("Menu Items:", menuItems);
 
 const AnimatedDrawer: React.FC<{
   isVisible: boolean;

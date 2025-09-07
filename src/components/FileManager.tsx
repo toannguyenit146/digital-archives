@@ -21,9 +21,11 @@ const FileManager: React.FC<FileManagerProps> = ({
   onFileDownload,
   canUpload,
   onUploadRequest,
+  currentFolderId,
+  onFolderChange,
 }) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  // const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -44,6 +46,7 @@ const FileManager: React.FC<FileManagerProps> = ({
   const loadFolderContents = async () => {
     setLoading(true);
     try {
+      console.log('Loading folder contents for folder ID:', currentFolderId, 'and category:', category);
       const response = await ApiService.getFolderContents(currentFolderId, category);
       if (response.success) {
         setItems(response.items || []);
@@ -56,10 +59,11 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const loadBreadcrumb = async () => {
     try {
+      console.log
       const response = await ApiService.getBreadcrumb(currentFolderId);
       if (response.success) {
         setBreadcrumb([
-          { id: null, name: categoryName, path: `/${categoryName}` },
+          // { id: null, name: categoryName, path: `/${categoryName}` },
           ...response.breadcrumb
         ]);
       }
@@ -74,7 +78,7 @@ const FileManager: React.FC<FileManagerProps> = ({
     try {
       const response = await ApiService.createFolder(
         newFolderName.trim(),
-        currentFolderId,
+        category,
         category
       );
       if (response.success) {
@@ -129,14 +133,17 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const handleItemPress = (item: FileSystemItem) => {
     if (item.type === 'folder') {
-      setCurrentFolderId(item.id);
+      // setCurrentFolderId(item.id);
+      onFolderChange(item.id);
     } else {
       onFileDownload(item);
     }
   };
 
   const handleBreadcrumbPress = (breadcrumbItem: BreadcrumbItem) => {
-    setCurrentFolderId(breadcrumbItem.id);
+    // setCurrentFolderId(breadcrumbItem.id);
+    console.log("breadcrumbItem: ", breadcrumbItem);
+    onFolderChange(breadcrumbItem.id);
   };
 
   const formatFileSize = (bytes: number) => {

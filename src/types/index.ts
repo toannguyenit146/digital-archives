@@ -5,8 +5,8 @@ export interface CategoryItem {
   color: string;
   icon: string;
   description: string;
-  hasSubcategories?: boolean;
-  allowUpload?: boolean;
+  hasSubcategories?: string;
+  allowUpload?: string;
   keyName: string;
 }
 
@@ -64,6 +64,8 @@ export interface FileManagerProps {
   category: string;
   categoryName: string;
   onFileDownload: (item: FileSystemItem) => void;
-  canUpload: boolean;
+  canUpload: string;
   onUploadRequest: (folderId: string | null) => void;
+  currentFolderId: string | null;
+  onFolderChange: (folderId: string | null) => void;
 }

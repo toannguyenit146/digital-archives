@@ -484,7 +484,7 @@ app.get('/api/file-system/sub-categories-document', async (req, res) => {
 // Get folder contents
 app.get('/api/file-system/contents', authenticateToken, async (req, res) => {
   try {
-    const { parent_id, category } = req.query;
+    const { parent_id, category, subcategory } = req.query;
     
     let query = `
       SELECT fs.*, u.full_name as uploader_name
@@ -504,6 +504,11 @@ app.get('/api/file-system/contents', authenticateToken, async (req, res) => {
     if (category) {
       query += ' AND fs.category = ?';
       params.push(category);
+    }
+
+    if (subcategory) {
+      query += ' AND fs.subcategory = ?';
+      params.push(subcategory);
     }
 
     query += ' ORDER BY fs.type DESC, fs.name ASC'; // Folders first, then files
@@ -601,6 +606,7 @@ app.post('/api/file-system/folder', authenticateToken, async (req, res) => {
 
     // Get category from parent if not provided
     let folderCategory = category;
+    let folderSubcategory = null;
     if (!folderCategory && parent_id) {
       const [parent] = await db.query(
         'SELECT category FROM file_system WHERE id = ?',
@@ -608,13 +614,14 @@ app.post('/api/file-system/folder', authenticateToken, async (req, res) => {
       );
       if (parent.length > 0) {
         folderCategory = parent[0].category;
+        folderSubcategory = parent[0].subcategory;
       }
     }
 
     const [result] = await db.query(`
-      INSERT INTO file_system (name, type, parent_id, path, category, uploaded_by)
-      VALUES (?, 'folder', ?, ?, ?, ?)
-    `, [name.trim(), parent_id || null, fullPath, folderCategory, req.user.id]);
+      INSERT INTO file_system (name, type, parent_id, path, category, subcategory, uploaded_by)
+      VALUES (?, 'folder', ?, ?, ?, ?, ?)
+    `, [name.trim(), parent_id || null, fullPath, folderCategory, folderSubcategory, req.user.id]);
 
     res.status(201).json({
       success: true,
@@ -652,6 +659,7 @@ app.post('/api/file-system/upload', authenticateToken, upload.single('file'), as
     // Get parent folder info
     let parentCategory = null;
     let parentPath = '/';
+    let parentSubcategory = null;
     
     if (parent_id) {
       const [parent] = await db.query(
@@ -662,6 +670,7 @@ app.post('/api/file-system/upload', authenticateToken, upload.single('file'), as
       if (parent.length > 0) {
         parentCategory = parent[0].category;
         parentPath = parent[0].path;
+        parentSubcategory = parent[0].subcategory;
       }
     }
 
@@ -677,15 +686,14 @@ app.post('/api/file-system/upload', authenticateToken, upload.single('file'), as
 
     // Save file metadata to database
     const [result] = await db.query(`
-      INSERT INTO file_system (name, type, parent_id, path, filename, title, author, 
-                               file_url, file_path, file_size, file_type, category, uploaded_by)
-      VALUES (?, 'file', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO file_system (name, type, parent_id, path, filename, author, 
+                               file_url, file_path, file_size, file_type, category, subcategory, uploaded_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       req.file.originalname,
       'file',
       parent_id || null,
       fullPath,
-      req.file.originalname,
       title,
       author,
       fileUrl,
@@ -693,6 +701,7 @@ app.post('/api/file-system/upload', authenticateToken, upload.single('file'), as
       req.file.size,
       req.file.mimetype,
       parentCategory,
+      parentSubcategory,
       req.user.id
     ]);
 

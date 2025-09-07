@@ -1,5 +1,4 @@
 import StorageOS from "../../src/storage/StorageOS";
-
 const API_BASE_URL = "http://192.168.0.109:3000/api"; // dev
 // const API_BASE_URL = 'http://YOUR_SERVER_IP:3000/api'; // prod
 
@@ -11,7 +10,7 @@ class ApiService {
         headers: {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
-          ...options.headers,
+          ...options,
         },
         ...options,
       };
@@ -38,7 +37,7 @@ class ApiService {
       const config = {
         headers: {
           "Content-Type": "application/json",
-          ...options.headers,
+          ...options,
         },
         ...options,
       };
@@ -102,7 +101,7 @@ class ApiService {
   static async getFolderContents(folderId: string | null, category?: string) {
     const params = new URLSearchParams();
     if (folderId) params.append("parent_id", folderId);
-    if (category) params.append("category", category);
+    // if (category) params.append("category", category);
 
     return this.makeRequest(`/file-system/contents?${params.toString()}`);
   }
@@ -153,7 +152,7 @@ class ApiService {
   }
 
   // Upload file to specific folder
-  static async uploadFileToFolder(formData: FormData, folderId: string | null) {
+  static async uploadFileToFolder(formData: FormData, folderId?: string | null) {
     const token = await StorageOS.getItem("authToken");
     const params = new URLSearchParams();
     if (folderId) params.append("parent_id", folderId);

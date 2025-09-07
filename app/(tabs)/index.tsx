@@ -236,26 +236,19 @@ export default function EnhancedDigitalArchivesV4() {
     setSelectedCategory(categoryId);
 
     const category = categories.find((cat) => cat.id === categoryId);
-    if (category != undefined && !category?.hasSubcategories) {
-      setCurrentView("subcategory");
-      // For categories without subcategories, create a virtual subcategory
-      setSelectedSubcategory({
-        id: `${categoryId}-main`,
-        title: category.title,
-        icon: category.icon,
-        description: category.description,
-        parentId: categoryId,
-        keyName: category.keyName,
-      });
+    console.log("Category details:", category);
+    if (category != undefined && category?.hasSubcategories == "false") {
       // Load documents for this category
       loadDocuments(categoryId);
-    } else if (category != undefined && category?.hasSubcategories) {
+      setCurrentView("subcategory");
+    } else if (category != undefined && category?.hasSubcategories == "true") {
       // For categories with subcategories, show subcategory list
       setCurrentView("category");
     }
   };
 
   const handleSubcategoryPress = (subcategory: SubcategoryItem) => {
+    setCurrentFolderId(subcategory.id);
     setSelectedSubcategory(subcategory);
     setCurrentView("subcategory");
     // Load documents for this subcategory
@@ -323,9 +316,9 @@ export default function EnhancedDigitalArchivesV4() {
   };
 
   const canUpload = () => {
-    if (currentView === "home") return false;
+    if (currentView === "home") return "false";
     const category = categories.find((cat) => cat.id === selectedCategory);
-    return category?.allowUpload || false;
+    return category?.allowUpload || "false";
   };
 
   const renderHomeView = () => (
@@ -439,7 +432,7 @@ export default function EnhancedDigitalArchivesV4() {
       </ScrollView>
     );
   };
-  
+
 const renderSubcategoryView = () => (
   <FileManager
     category={selectedCategory!}
@@ -448,9 +441,11 @@ const renderSubcategoryView = () => (
     canUpload={canUpload()}
     onUploadRequest={(folderId) => {
       // Lưu currentFolderId để truyền vào UploadModal
-      setCurrentFolderId(folderId);
+      setCurrentFolderId(selectedCategory);
       setIsUploadModalOpen(true);
     }}
+    currentFolderId={selectedCategory}
+    onFolderChange={(folderId) => setCurrentFolderId(selectedCategory)}
   />
 );
 
@@ -554,11 +549,12 @@ const renderSubcategoryView = () => (
         category={getCurrentCategory()}
         subcategory={getCurrentSubcategory()}
         user={user}
-        folderId={currentFolderId} // Truyền folderId vào
+        folderId={selectedCategory} // Truyền folderId vào
         onUploadSuccess={() => {
           // Refresh FileManager content
           if (selectedCategory) {
             // FileManager sẽ tự động refresh khi props thay đổi
+            loadDocuments(selectedCategory, selectedSubcategory?.keyName);
           }
         }}
       />

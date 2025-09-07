@@ -23,7 +23,7 @@ const UploadModal: React.FC<{
   user: User;
   onUploadSuccess: () => void;
   folderId?: string | null; // Add folderId prop
-}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess, folderId = null }) => {
+}> = ({ isVisible, onClose, category, subcategory, user, onUploadSuccess, folderId }) => {
   const [selectedFile, setSelectedFile] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
