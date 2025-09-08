@@ -1127,4 +1127,55 @@ breadcrumbActiveText: {
   fontWeight: '600',
   fontSize: 13,
 },
+// Bottom Navigation Bar Styles
+bottomNavBar: {
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  height: 80,
+  backgroundColor: '#667eea',
+  flexDirection: 'row',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  paddingHorizontal: 10,
+  paddingBottom: Platform.OS === 'ios' ? 20 : 10, // Safe area for iOS
+  paddingTop: 10,
+  boxShadow: '0px -2px 3.84px rgba(0,0,0,0.1)',
+  elevation: 5,
+},
+
+bottomNavItem: {
+  flex: 1,
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingVertical: 5,
+},
+
+bottomNavText: {
+  color: 'white',
+  fontSize: 12,
+  marginTop: 4,
+  textAlign: 'center',
+  fontWeight: '500',
+},
+
+bottomNavBadge: {
+  position: 'absolute',
+  top: -8,
+  right: -8,
+  backgroundColor: '#FF4757',
+  borderRadius: 10,
+  minWidth: 18,
+  height: 18,
+  justifyContent: 'center',
+  alignItems: 'center',
+  paddingHorizontal: 4,
+},
+
+bottomNavBadgeText: {
+  color: 'white',
+  fontSize: 11,
+  fontWeight: 'bold',
+},
 });

@@ -323,7 +323,7 @@ export default function EnhancedDigitalArchivesV4() {
     <ScrollView
       style={styles.scrollView}
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]} // Add padding for bottom nav
     >
       {/* Header Section */}
       <View style={styles.header}>
@@ -399,7 +399,7 @@ export default function EnhancedDigitalArchivesV4() {
     return (
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]} // Add padding for bottom nav
       >
         <View style={styles.subcategoryHeader}>
           <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
@@ -425,34 +425,36 @@ export default function EnhancedDigitalArchivesV4() {
     );
   };
 
-const renderSubcategoryView = () => (
-  <FileManager
-    category={selectedCategory!}
-    categoryName={getCurrentCategory()}
-    onFileDownload={handleDownload}
-    canUpload={canUpload()}
-    onUploadRequest={(folderId) => {
-      setCurrentFolderId(selectedCategory);
-      setIsUploadModalOpen(true);
-    }}
-    currentFolderId={selectedCategory}
-    onFolderChange={(folderId) => setCurrentFolderId(selectedCategory)}
-    onNavigateHome={() => {
-      // Navigate về home
-      setSelectedCategory(null);
-      setSelectedSubcategory(null);
-      setCurrentView("home");
-      setCurrentFolderId(null);
-      setDocuments([]);
-      setSearchResults([]);
-    }}
-  />
-);
+  const renderSubcategoryView = () => (
+    <View style={{ flex: 1, paddingBottom: 80 }}> {/* Add padding for bottom nav */}
+      <FileManager
+        category={selectedCategory!}
+        categoryName={getCurrentCategory()}
+        onFileDownload={handleDownload}
+        canUpload={canUpload()}
+        onUploadRequest={(folderId) => {
+          setCurrentFolderId(selectedCategory);
+          setIsUploadModalOpen(true);
+        }}
+        currentFolderId={selectedCategory}
+        onFolderChange={(folderId) => setCurrentFolderId(selectedCategory)}
+        onNavigateHome={() => {
+          // Navigate về home
+          setSelectedCategory(null);
+          setSelectedSubcategory(null);
+          setCurrentView("home");
+          setCurrentFolderId(null);
+          setDocuments([]);
+          setSearchResults([]);
+        }}
+      />
+    </View>
+  );
 
   const renderSearchView = () => (
     <ScrollView
       style={styles.scrollView}
-      contentContainerStyle={styles.scrollContent}
+      contentContainerStyle={[styles.scrollContent, { paddingBottom: 80 }]} // Add padding for bottom nav
     >
       <View style={styles.subcategoryHeader}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
@@ -496,36 +498,55 @@ const renderSubcategoryView = () => (
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header with Menu Button */}
-      <View style={styles.headerBar}>
+      {/* Content based on current view */}
+      <View style={{ flex: 1 }}>
+        {currentView === "home" && renderHomeView()}
+        {currentView === "category" && renderCategoryView()}
+        {currentView === "subcategory" && renderSubcategoryView()}
+        {currentView === "search" && renderSearchView()}
+      </View>
+
+      {/* Bottom Navigation Bar */}
+      <View style={styles.bottomNavBar}>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={styles.bottomNavItem}
           onPress={() => setIsDrawerOpen(true)}
         >
           <Icon name="menu" size={24} color="white" />
+          <Text style={styles.bottomNavText}>Menu</Text>
         </TouchableOpacity>
-        <Text style={styles.headerBarTitle}>Kho Lưu Trữ Số</Text>
-        <View style={styles.headerBarRight}>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={() => setIsSearchModalOpen(true)}
-          >
-            <Icon name="search" size={20} color="white" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Icon name="notifications" size={20} color="white" />
-            <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>7</Text>
-            </View>
-          </TouchableOpacity>
-        </View>
-      </View>
+        
+        <TouchableOpacity
+          style={styles.bottomNavItem}
+          onPress={() => handleDrawerItemPress("home")}
+        >
+          <Icon name="home" size={24} color={currentView === "home" ? "#FFD700" : "white"} />
+          <Text style={[styles.bottomNavText, currentView === "home" && { color: "#FFD700" }]}>
+            Trang chủ
+          </Text>
+        </TouchableOpacity>
 
-      {/* Content based on current view */}
-      {currentView === "home" && renderHomeView()}
-      {currentView === "category" && renderCategoryView()}
-      {currentView === "subcategory" && renderSubcategoryView()}
-      {currentView === "search" && renderSearchView()}
+        <TouchableOpacity
+          style={styles.bottomNavItem}
+          onPress={() => setIsSearchModalOpen(true)}
+        >
+          <Icon name="search" size={24} color="white" />
+          <Text style={styles.bottomNavText}>Tìm kiếm</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.bottomNavItem}
+          onPress={() => {/* Handle notifications */}}
+        >
+          <View style={{ position: 'relative' }}>
+            <Icon name="notifications" size={24} color="white" />
+            <View style={styles.bottomNavBadge}>
+              <Text style={styles.bottomNavBadgeText}>7</Text>
+            </View>
+          </View>
+          <Text style={styles.bottomNavText}>Thông báo</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Animated Navigation Drawer */}
       <AnimatedDrawer
