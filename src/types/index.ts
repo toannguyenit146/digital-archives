@@ -55,9 +55,10 @@ export interface FileSystemItem {
 }
 
 export interface BreadcrumbItem {
-  id: string | null;
+  id: string | null | 'home';
   name: string;
   path: string;
+  isHome?: boolean; // Thêm flag để đánh dấu item Home
 }
 
 export interface FileManagerProps {

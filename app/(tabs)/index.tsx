@@ -143,11 +143,9 @@ export default function EnhancedDigitalArchivesV4() {
   const handleDownload = async (fileSystemItem: FileSystemItem) => {
     try {
       const token = await StorageOS.getItem("authToken");
-      if (!token) {
-        Alert.alert("Lỗi", "Không tìm thấy token đăng nhập");
+      if (!token) {;
         return;
       }
-
       // Gọi API download với Authorization header
       const response = await fetch(
         `${API_BASE_URL}/documents/${fileSystemItem.id}/download`,
@@ -440,12 +438,20 @@ const renderSubcategoryView = () => (
     onFileDownload={handleDownload}
     canUpload={canUpload()}
     onUploadRequest={(folderId) => {
-      // Lưu currentFolderId để truyền vào UploadModal
       setCurrentFolderId(selectedCategory);
       setIsUploadModalOpen(true);
     }}
     currentFolderId={selectedCategory}
     onFolderChange={(folderId) => setCurrentFolderId(selectedCategory)}
+    onNavigateHome={() => {
+      // Navigate về home
+      setSelectedCategory(null);
+      setSelectedSubcategory(null);
+      setCurrentView("home");
+      setCurrentFolderId(null);
+      setDocuments([]);
+      setSearchResults([]);
+    }}
   />
 );
 

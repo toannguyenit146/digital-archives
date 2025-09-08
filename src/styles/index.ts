@@ -871,8 +871,6 @@ export const styles = StyleSheet.create({
       color: '#64748b',
       marginTop: 12,
     },
-    // Thêm vào file styles.ts
-
 // File Manager Styles
 fileManagerContainer: {
   flex: 1,
@@ -927,26 +925,6 @@ viewModeButton: {
 
 viewModeActive: {
   backgroundColor: '#e0e7ff',
-},
-
-breadcrumbContainer: {
-  paddingHorizontal: 16,
-  paddingVertical: 8,
-  backgroundColor: '#fff',
-  borderBottomWidth: 1,
-  borderBottomColor: '#f1f5f9',
-},
-
-breadcrumbItem: {
-  flexDirection: 'row',
-  alignItems: 'center',
-  marginRight: 8,
-},
-
-breadcrumbText: {
-  fontSize: 14,
-  color: '#667eea',
-  marginRight: 4,
 },
 
 fileList: {
@@ -1093,5 +1071,79 @@ modalConfirmText: {
   fontSize: 16,
   color: '#fff',
   fontWeight: '500',
+},
+
+// Empty folder upload button
+emptyFolderUploadButton: {
+  marginTop: 16,
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 16,
+  paddingVertical: 8,
+  backgroundColor: '#f8faff',
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: '#667eea',
+  borderStyle: 'dashed',
+},
+
+emptyFolderUploadText: {
+  marginLeft: 8,
+  color: '#667eea',
+  fontSize: 14,
+  fontWeight: '500',
+},
+breadcrumbContainer: {
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  backgroundColor: '#fafbfc',
+  borderBottomWidth: 1,
+  borderBottomColor: '#e2e8f0',
+  maxHeight: 44, // Giới hạn chiều cao
+},
+
+breadcrumbItem: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 6,
+  marginRight: 2,
+  maxWidth: 120, // Giới hạn độ rộng để tránh quá dài
+},
+
+breadcrumbText: {
+  fontSize: 13, // Giảm từ 14 xuống 13
+  color: '#64748b',
+  fontWeight: '500',
+  marginRight: 3,
+},
+
+// Enhanced Home breadcrumb styles
+breadcrumbHomeItem: {
+  backgroundColor: 'rgba(102, 126, 234, 0.08)',
+  borderRadius: 6,
+  paddingHorizontal: 6,
+  paddingVertical: 4,
+},
+
+breadcrumbHomeText: {
+  color: '#667eea',
+  fontWeight: '600',
+  fontSize: 13,
+},
+
+// Current/active breadcrumb item
+breadcrumbActiveItem: {
+  backgroundColor: '#667eea',
+  borderRadius: 6,
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+},
+
+breadcrumbActiveText: {
+  color: 'white',
+  fontWeight: '600',
+  fontSize: 13,
 },
 });

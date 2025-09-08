@@ -15,7 +15,9 @@ import { styles } from '../styles';
 import { BreadcrumbItem, FileManagerProps, FileSystemItem } from '../types';
 import Icon from './Icon';
 
-const FileManager: React.FC<FileManagerProps> = ({
+const FileManager: React.FC<FileManagerProps & {
+  onNavigateHome?: () => void; // Thêm callback để navigate về home
+}> = ({
   category,
   categoryName,
   onFileDownload,
@@ -23,9 +25,9 @@ const FileManager: React.FC<FileManagerProps> = ({
   onUploadRequest,
   currentFolderId,
   onFolderChange,
+  onNavigateHome,
 }) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
-  // const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
@@ -59,16 +61,33 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const loadBreadcrumb = async () => {
     try {
-      console.log
       const response = await ApiService.getBreadcrumb(currentFolderId);
       if (response.success) {
-        setBreadcrumb([
-          // { id: null, name: categoryName, path: `/${categoryName}` },
+        // Tạo breadcrumb với Home ở đầu
+        const fullBreadcrumb: BreadcrumbItem[] = [
+          { 
+            id: 'home', 
+            name: 'Trang chủ', 
+            path: '/home',
+            isHome: true // Đánh dấu đây là item Home
+          },
           ...response.breadcrumb
-        ]);
+        ];
+        
+        setBreadcrumb(fullBreadcrumb);
       }
     } catch (error) {
       console.error('Error loading breadcrumb:', error);
+      // Fallback breadcrumb nếu API lỗi
+      const fallbackBreadcrumb: BreadcrumbItem[] = [
+        { 
+          id: 'home', 
+          name: 'Trang chủ', 
+          path: '/home',
+          isHome: true 
+        },
+      ];
+      setBreadcrumb(fallbackBreadcrumb);
     }
   };
 
@@ -78,7 +97,7 @@ const FileManager: React.FC<FileManagerProps> = ({
     try {
       const response = await ApiService.createFolder(
         newFolderName.trim(),
-        category,
+        currentFolderId,
         category
       );
       if (response.success) {
@@ -133,7 +152,6 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   const handleItemPress = (item: FileSystemItem) => {
     if (item.type === 'folder') {
-      // setCurrentFolderId(item.id);
       onFolderChange(item.id);
     } else {
       onFileDownload(item);
@@ -141,7 +159,19 @@ const FileManager: React.FC<FileManagerProps> = ({
   };
 
   const handleBreadcrumbPress = (breadcrumbItem: BreadcrumbItem) => {
-    // setCurrentFolderId(breadcrumbItem.id);
+    // Nếu click vào Home, navigate về trang chủ
+    if (breadcrumbItem.isHome && onNavigateHome) {
+      onNavigateHome();
+      return;
+    }
+    
+    // Nếu click vào category root (id = null), quay về folder gốc của category
+    if (breadcrumbItem.id === null) {
+      onFolderChange(null);
+      return;
+    }
+    
+    // Các folder khác
     console.log("breadcrumbItem: ", breadcrumbItem);
     onFolderChange(breadcrumbItem.id);
   };
@@ -172,7 +202,7 @@ const FileManager: React.FC<FileManagerProps> = ({
 
   return (
     <View style={styles.fileManagerContainer}>
-      {/* Toolbar */}
+      {/* Enhanced Toolbar */}
       <View style={styles.fileManagerToolbar}>
         <View style={styles.toolbarLeft}>
           {canUpload && (
@@ -218,24 +248,53 @@ const FileManager: React.FC<FileManagerProps> = ({
         </View>
       </View>
 
-      {/* Breadcrumb */}
+      {/* Compact Breadcrumb Navigation */}
       <ScrollView
         horizontal
         style={styles.breadcrumbContainer}
         showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ alignItems: 'center', minHeight: 32 }}
       >
-        {breadcrumb.map((item, index) => (
-          <TouchableOpacity
-            key={item.id || 'root'}
-            style={styles.breadcrumbItem}
-            onPress={() => handleBreadcrumbPress(item)}
-          >
-            <Text style={styles.breadcrumbText}>{item.name}</Text>
-            {index < breadcrumb.length - 1 && (
-              <Icon name="chevron-forward" size={14} color="#64748b" />
-            )}
-          </TouchableOpacity>
-        ))}
+        {breadcrumb.map((item, index) => {
+          const isLast = index === breadcrumb.length - 1;
+          const isHome = item.isHome;
+          
+          return (
+            <View key={item.id || `breadcrumb-${index}`} style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity
+                style={[
+                  styles.breadcrumbItem,
+                  isHome && styles.breadcrumbHomeItem,
+                  isLast && styles.breadcrumbActiveItem,
+                ]}
+                onPress={() => handleBreadcrumbPress(item)}
+                disabled={isLast} // Disable click on current location
+              >
+                {isHome && (
+                  <View style={{ marginRight: 3 }}>
+                    <Icon name="home" size={12} color={isLast ? "white" : "#667eea"} />
+                  </View>
+                )}
+                <Text 
+                  style={[
+                    styles.breadcrumbText,
+                    isHome && !isLast && styles.breadcrumbHomeText,
+                    isLast && styles.breadcrumbActiveText
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.name.length > 12 ? `${item.name.substring(0, 12)}...` : item.name}
+                </Text>
+              </TouchableOpacity>
+              
+              {index < breadcrumb.length - 1 && (
+                <View style={{ marginHorizontal: 2 }}>
+                  <Icon name="chevron-forward" size={10} color="#94a3b8" />
+                </View>
+              )}
+            </View>
+          );
+        })}
       </ScrollView>
 
       {/* File List */}
@@ -250,6 +309,15 @@ const FileManager: React.FC<FileManagerProps> = ({
             <View style={styles.emptyFolder}>
               <Icon name="folder" size={64} color="#cbd5e1" />
               <Text style={styles.emptyFolderText}>Thư mục trống</Text>
+              {canUpload && (
+                <TouchableOpacity 
+                  style={styles.emptyFolderUploadButton}
+                  onPress={() => onUploadRequest(currentFolderId)}
+                >
+                  <Icon name="upload" size={20} color="#667eea" />
+                  <Text style={styles.emptyFolderUploadText}>Tải lên tài liệu đầu tiên</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={viewMode === 'grid' ? styles.fileGrid : styles.fileListView}>
