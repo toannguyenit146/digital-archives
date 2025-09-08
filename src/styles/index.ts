@@ -141,7 +141,7 @@ export const styles = StyleSheet.create({
     header: {
       height: 180,
       position: 'relative',
-      marginBottom: 20,
+      marginBottom: 15,
     },
     headerBackground: {
       ...StyleSheet.absoluteFillObject,
@@ -156,34 +156,18 @@ export const styles = StyleSheet.create({
       paddingHorizontal: 20,
     },
     headerTitle: {
-      fontSize: 24,
+      fontSize: 28,
       fontWeight: 'bold',
       color: 'white',
       textAlign: 'center',
       marginBottom: 5,
     },
     headerSubtitle: {
-      fontSize: 14,
+      fontSize: 16,
+      fontStyle: 'italic',
       color: 'rgba(255,255,255,0.9)',
       textAlign: 'center',
-      marginBottom: 15,
-    },
-    mainTitleContainer: {
-      alignItems: 'center',
-    },
-    titleBorder: {
-      borderWidth: 2,
-      borderColor: 'white',
-      borderRadius: 25,
-      paddingHorizontal: 20,
-      paddingVertical: 8,
-      backgroundColor: 'rgba(255,255,255,0.1)',
-    },
-    mainTitle: {
-      fontSize: 16,
-      fontWeight: '600',
-      color: 'white',
-      textAlign: 'center',
+      marginBottom: 0,
     },
     welcomeSection: {
       backgroundColor: 'white',
@@ -202,6 +186,7 @@ export const styles = StyleSheet.create({
     },
     welcomeSubtext: {
       fontSize: 14,
+      fontStyle: 'italic',
       color: '#64748b',
     },
     categoriesContainer: {
@@ -213,14 +198,10 @@ export const styles = StyleSheet.create({
       alignItems: 'center',
     },
     sectionTitle: {
-      fontSize: 20,
+      fontSize: 24,
       fontWeight: 'bold',
       color: '#1e293b',
       marginBottom: 5,
-    },
-    sectionSubtitle: {
-      fontSize: 14,
-      color: '#64748b',
     },
     categoriesGrid: {
       flexDirection: 'row',

@@ -335,11 +335,6 @@ export default function EnhancedDigitalArchivesV4() {
           <Text style={styles.headerSubtitle}>
             Hệ thống quản lý tài liệu số
           </Text>
-          <View style={styles.mainTitleContainer}>
-            <View style={styles.titleBorder}>
-              <Text style={styles.mainTitle}>Những điều cần nắm</Text>
-            </View>
-          </View>
         </View>
       </View>
 
@@ -355,7 +350,6 @@ export default function EnhancedDigitalArchivesV4() {
       <View style={styles.categoriesContainer}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Danh mục chính</Text>
-          <Text style={styles.sectionSubtitle}>Chọn danh mục để bắt đầu</Text>
         </View>
 
         <View style={styles.categoriesGrid}>
@@ -521,7 +515,7 @@ const renderSubcategoryView = () => (
           <TouchableOpacity style={styles.notificationButton}>
             <Icon name="notifications" size={20} color="white" />
             <View style={styles.notificationBadge}>
-              <Text style={styles.notificationBadgeText}>3</Text>
+              <Text style={styles.notificationBadgeText}>7</Text>
             </View>
           </TouchableOpacity>
         </View>
