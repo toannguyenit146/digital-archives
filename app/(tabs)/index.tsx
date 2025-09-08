@@ -148,7 +148,7 @@ export default function EnhancedDigitalArchivesV4() {
       }
       // Gọi API download với Authorization header
       const response = await fetch(
-        `${API_BASE_URL}/documents/${fileSystemItem.id}/download`,
+        `${API_BASE_URL}/file-system/${fileSystemItem.id}/download`,
         {
           method: "GET",
           headers: {
