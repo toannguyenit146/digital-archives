@@ -18,8 +18,15 @@ class ApiService {
         "[" + new Date().toISOString() + "] " + "Fetch Config:",
         config
       );
-      console.log("Fetching from:", `${API_BASE_URL}${endpoint}`);
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+      console.log("[",response.status,"]Fetching from:", `${API_BASE_URL}${endpoint}`);
+      if (response.status === 401 || response.status === 403) {
+        // Token hết hạn hoặc invalid
+        await StorageOS.deleteItem("authToken");
+        await StorageOS.deleteItem("userData");
+        // Thông báo để app quay lại Login
+        throw new Error("UNAUTHORIZED OR FORBIDDEN");
+      }
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.error || "Network error");
@@ -41,11 +48,6 @@ class ApiService {
         },
         ...options,
       };
-      console.log(
-        "[" + new Date().toISOString() + "] " + "Public Fetch Config:",
-        config
-      );
-      console.log("Fetching from:", `${API_BASE_URL}${endpoint}`);
       const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
       const data = await response.json();
       if (!response.ok) {

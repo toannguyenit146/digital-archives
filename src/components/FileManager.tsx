@@ -11,8 +11,9 @@ import {
   View,
 } from 'react-native';
 import ApiService from '../api/ApiService';
+import StorageOS from '../storage/StorageOS';
 import { styles } from '../styles';
-import { BreadcrumbItem, FileManagerProps, FileSystemItem } from '../types';
+import { BreadcrumbItem, FileManagerProps, FileSystemItem, User } from '../types';
 import Icon from './Icon';
 
 const FileManager: React.FC<FileManagerProps & {
@@ -39,7 +40,17 @@ const FileManager: React.FC<FileManagerProps & {
   const [newFolderName, setNewFolderName] = useState('');
   const [renameValue, setRenameValue] = useState('');
   const [renameItemId, setRenameItemId] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
 
+const handleApiError = async (error: any) => {
+    if (error.message === "UNAUTHORIZED OR FORBIDDEN") {
+      Alert.alert("Phiên đăng nhập đã hết hạn", "Vui lòng đăng nhập lại");
+      await StorageOS.deleteItem("authToken");
+      await StorageOS.deleteItem("userData");
+    } else {
+      console.error(error);
+    }
+  };
   useEffect(() => {
     loadFolderContents();
     loadBreadcrumb();
@@ -54,6 +65,7 @@ const FileManager: React.FC<FileManagerProps & {
         setItems(response.items || []);
       }
     } catch (error) {
+      await handleApiError(error);
       Alert.alert('Lỗi', 'Không thể tải nội dung thư mục');
     }
     setLoading(false);
@@ -76,6 +88,7 @@ const FileManager: React.FC<FileManagerProps & {
         setBreadcrumb(fullBreadcrumb);
       }
     } catch (error) {
+      await handleApiError(error);
       console.error('Error loading breadcrumb:', error);
       const fallbackBreadcrumb: BreadcrumbItem[] = [
         { 

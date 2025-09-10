@@ -2,14 +2,14 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import ApiService from "../../src/api/ApiService";
 import AnimatedDrawer from "../../src/components/AnimatedDrawer";
@@ -46,6 +46,17 @@ export default function EnhancedDigitalArchivesV4() {
   const [searchResults, setSearchResults] = useState<FileSystemItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+
+  const handleApiError = async (error: any) => {
+    if (error.message === "UNAUTHORIZED OR FORBIDDEN") {
+      Alert.alert("Phiên đăng nhập đã hết hạn", "Vui lòng đăng nhập lại");
+      await StorageOS.deleteItem("authToken");
+      await StorageOS.deleteItem("userData");
+      setUser(null); // quay lại LoginScreen
+    } else {
+      console.error(error);
+    }
+  };
 
   const handleLogin = (loggedInUser: User) => {
     setUser(loggedInUser);
@@ -116,7 +127,7 @@ export default function EnhancedDigitalArchivesV4() {
         setDocuments([]);
       }
     } catch (error) {
-      console.error("Error loading documents:", error);
+      await handleApiError(error);
       setDocuments([]);
       Alert.alert("Lỗi", "Không thể tải danh sách tài liệu");
     }
@@ -227,6 +238,9 @@ export default function EnhancedDigitalArchivesV4() {
         }
       };
     } catch (error) {
+      await handleApiError(error);
+      setDocuments([]);
+      Alert.alert("Lỗi", "Không thể tải danh sách tài liệu");
       console.error("Download exception:", error);
       Alert.alert("Lỗi", "Có lỗi khi tải file");
     }
