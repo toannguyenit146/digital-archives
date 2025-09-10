@@ -1,5 +1,5 @@
 import StorageOS from "../../src/storage/StorageOS";
-const API_BASE_URL = "http://192.168.0.109:3000/api"; // dev
+const API_BASE_URL = "http://192.168.0.107:3000/api"; // dev
 // const API_BASE_URL = 'http://YOUR_SERVER_IP:3000/api'; // prod
 
 class ApiService {
@@ -100,6 +100,7 @@ class ApiService {
   // Get folder contents (files and subfolders)
   static async getFolderContents(folderId: string | null, category?: string) {
     const params = new URLSearchParams();
+    console.log("==============>>>>>>>>>>> folderId :", folderId);
     if (folderId) params.append("parent_id", folderId);
     // if (category) params.append("category", category);
 

@@ -16,7 +16,7 @@ import { BreadcrumbItem, FileManagerProps, FileSystemItem } from '../types';
 import Icon from './Icon';
 
 const FileManager: React.FC<FileManagerProps & {
-  onNavigateHome?: () => void; // Thêm callback để navigate về home
+  onNavigateHome?: () => void;
 }> = ({
   category,
   categoryName,
@@ -48,7 +48,7 @@ const FileManager: React.FC<FileManagerProps & {
   const loadFolderContents = async () => {
     setLoading(true);
     try {
-      console.log('Loading folder contents for folder ID:', currentFolderId, 'and category:', category);
+      console.log("=================Loading folder contents...", currentFolderId, category);
       const response = await ApiService.getFolderContents(currentFolderId, category);
       if (response.success) {
         setItems(response.items || []);
@@ -63,13 +63,12 @@ const FileManager: React.FC<FileManagerProps & {
     try {
       const response = await ApiService.getBreadcrumb(currentFolderId);
       if (response.success) {
-        // Tạo breadcrumb với Home ở đầu
         const fullBreadcrumb: BreadcrumbItem[] = [
           { 
             id: 'home', 
             name: 'Trang chủ', 
             path: '/home',
-            isHome: true // Đánh dấu đây là item Home
+            isHome: true
           },
           ...response.breadcrumb
         ];
@@ -78,7 +77,6 @@ const FileManager: React.FC<FileManagerProps & {
       }
     } catch (error) {
       console.error('Error loading breadcrumb:', error);
-      // Fallback breadcrumb nếu API lỗi
       const fallbackBreadcrumb: BreadcrumbItem[] = [
         { 
           id: 'home', 
@@ -159,19 +157,16 @@ const FileManager: React.FC<FileManagerProps & {
   };
 
   const handleBreadcrumbPress = (breadcrumbItem: BreadcrumbItem) => {
-    // Nếu click vào Home, navigate về trang chủ
     if (breadcrumbItem.isHome && onNavigateHome) {
       onNavigateHome();
       return;
     }
     
-    // Nếu click vào category root (id = null), quay về folder gốc của category
     if (breadcrumbItem.id === null) {
       onFolderChange(null);
       return;
     }
     
-    // Các folder khác
     console.log("breadcrumbItem: ", breadcrumbItem);
     onFolderChange(breadcrumbItem.id);
   };
@@ -199,6 +194,120 @@ const FileManager: React.FC<FileManagerProps & {
     if (fileType.includes('video')) return '🎥';
     return '📄';
   };
+
+  // Enhanced Grid Item Render
+  const renderGridItem = (item: FileSystemItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.fileGridItem}
+      onPress={() => handleItemPress(item)}
+      onLongPress={() => {
+        Alert.alert(
+          item.name,
+          'Chọn hành động',
+          [
+            { text: 'Hủy', style: 'cancel' },
+            {
+              text: 'Đổi tên',
+              onPress: () => {
+                setRenameItemId(item.id);
+                setRenameValue(item.name);
+                setShowRename(true);
+              },
+            },
+            {
+              text: 'Xóa',
+              style: 'destructive',
+              onPress: () => handleDelete(item.id, item.name),
+            },
+          ]
+        );
+      }}
+    >
+      <View style={styles.gridItemIconContainer}>
+        <Text style={styles.gridFileIcon}>{getFileIcon(item)}</Text>
+      </View>
+      
+      <View style={styles.gridItemContent}>
+        <Text style={styles.gridItemName} numberOfLines={2} ellipsizeMode="tail">
+          {item.name}
+        </Text>
+        
+        <View style={styles.gridItemMeta}>
+          <Text style={styles.gridItemDate}>
+            {formatDate(item.created_at)}
+          </Text>
+          {item.type === 'file' && item.file_size && (
+            <Text style={styles.gridItemSize}>
+              {formatFileSize(item.file_size)}
+            </Text>
+          )}
+        </View>
+      </View>
+      
+      {item.type === 'folder' && (
+        <View style={styles.gridFolderIndicator}>
+          <Icon name="chevron-forward" size={12} color="#64748b" />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+
+  // Enhanced List Item Render
+  const renderListItem = (item: FileSystemItem) => (
+    <TouchableOpacity
+      key={item.id}
+      style={styles.fileListItem}
+      onPress={() => handleItemPress(item)}
+      onLongPress={() => {
+        Alert.alert(
+          item.name,
+          'Chọn hành động',
+          [
+            { text: 'Hủy', style: 'cancel' },
+            {
+              text: 'Đổi tên',
+              onPress: () => {
+                setRenameItemId(item.id);
+                setRenameValue(item.name);
+                setShowRename(true);
+              },
+            },
+            {
+              text: 'Xóa',
+              style: 'destructive',
+              onPress: () => handleDelete(item.id, item.name),
+            },
+          ]
+        );
+      }}
+    >
+      <View style={styles.fileItemIcon}>
+        <Text style={styles.fileIcon}>{getFileIcon(item)}</Text>
+      </View>
+      
+      <View style={styles.fileItemDetails}>
+        <Text style={styles.fileItemName} numberOfLines={2}>
+          {item.name}
+        </Text>
+        
+        <View style={styles.fileItemMeta}>
+          <Text style={styles.fileItemMetaText}>
+            {formatDate(item.created_at)}
+          </Text>
+          {item.type === 'file' && item.file_size && (
+            <Text style={styles.fileItemMetaText}>
+              {formatFileSize(item.file_size)}
+            </Text>
+          )}
+        </View>
+      </View>
+      
+      {item.type === 'folder' && (
+        <Icon name="chevron-forward" size={16} color="#64748b" />
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.fileManagerContainer}>
@@ -268,7 +377,7 @@ const FileManager: React.FC<FileManagerProps & {
                   isLast && styles.breadcrumbActiveItem,
                 ]}
                 onPress={() => handleBreadcrumbPress(item)}
-                disabled={isLast} // Disable click on current location
+                disabled={isLast}
               >
                 {isHome && (
                   <View style={{ marginRight: 3 }}>
@@ -322,61 +431,7 @@ const FileManager: React.FC<FileManagerProps & {
           ) : (
             <View style={viewMode === 'grid' ? styles.fileGrid : styles.fileListView}>
               {items.map((item) => (
-                <TouchableOpacity
-                  key={item.id}
-                  style={viewMode === 'grid' ? styles.fileGridItem : styles.fileListItem}
-                  onPress={() => handleItemPress(item)}
-                  onLongPress={() => {
-                    // Show context menu
-                    Alert.alert(
-                      item.name,
-                      'Chọn hành động',
-                      [
-                        { text: 'Hủy', style: 'cancel' },
-                        {
-                          text: 'Đổi tên',
-                          onPress: () => {
-                            setRenameItemId(item.id);
-                            setRenameValue(item.name);
-                            setShowRename(true);
-                          },
-                        },
-                        {
-                          text: 'Xóa',
-                          style: 'destructive',
-                          onPress: () => handleDelete(item.id, item.name),
-                        },
-                      ]
-                    );
-                  }}
-                >
-                  <View style={styles.fileItemIcon}>
-                    <Text style={styles.fileIcon}>{getFileIcon(item)}</Text>
-                  </View>
-                  
-                  <View style={styles.fileItemDetails}>
-                    <Text style={styles.fileItemName} numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    
-                    {viewMode === 'list' && (
-                      <View style={styles.fileItemMeta}>
-                        <Text style={styles.fileItemMetaText}>
-                          {formatDate(item.created_at)}
-                        </Text>
-                        {item.type === 'file' && item.file_size && (
-                          <Text style={styles.fileItemMetaText}>
-                            {formatFileSize(item.file_size)}
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </View>
-                  
-                  {item.type === 'folder' && (
-                    <Icon name="chevron-forward" size={16} color="#64748b" />
-                  )}
-                </TouchableOpacity>
+                viewMode === 'grid' ? renderGridItem(item) : renderListItem(item)
               ))}
             </View>
           )}

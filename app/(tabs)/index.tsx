@@ -2,14 +2,14 @@ import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 import React, { useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    Text,
+    TouchableOpacity,
+    View
 } from "react-native";
 import ApiService from "../../src/api/ApiService";
 import AnimatedDrawer from "../../src/components/AnimatedDrawer";
@@ -27,7 +27,7 @@ import { styles } from "../../src/styles";
 import { Document, FileSystemItem, SubcategoryItem, User } from "../../src/types";
 
 // API Configuration - Change this to your backend server URL
-const API_BASE_URL = "http://192.168.0.109:3000/api"; // For development
+const API_BASE_URL = "http://:3000/api"; // For development
 // const API_BASE_URL = 'http://YOUR_SERVER_IP:3000/api'; // For production
 
 export default function EnhancedDigitalArchivesV4() {
@@ -90,18 +90,25 @@ export default function EnhancedDigitalArchivesV4() {
     }
   };
 
-  const loadDocuments = async (categoryId: string, subcategoryId?: string) => {
+  const loadDocuments = async (categoryId?: string, subcategoryId?: string) => {
     setLoading(true);
     try {
       const category = categories.find((cat) => cat.id === categoryId);
       const subcategory = documentSubcategories.find(
-        (sub) => sub.keyName === subcategoryId
+        (sub) => sub.id === subcategoryId
       );
-
-      const response = await ApiService.getFolderContents(
-        currentFolderId,
-        category?.keyName || subcategory?.keyName
-      );
+      let response;
+      if (subcategory) {
+        response = await ApiService.getFolderContents(
+                subcategory?.id
+              );
+      } else {
+        console.log("Loading documents for category:", category?.id);
+        response = await ApiService.getFolderContents(
+                currentFolderId,
+                category?.keyName
+              );
+      }
 
       if (response.success) {
         setDocuments(response.documents);
@@ -237,20 +244,23 @@ export default function EnhancedDigitalArchivesV4() {
     console.log("Category details:", category);
     if (category != undefined && category?.hasSubcategories == "false") {
       // Load documents for this category
+      console.log("=====> Loading documents for category:", category)
       loadDocuments(categoryId);
       setCurrentView("subcategory");
     } else if (category != undefined && category?.hasSubcategories == "true") {
       // For categories with subcategories, show subcategory list
+      console.log("=====> Loading subcategories for category:", category)
       setCurrentView("category");
     }
   };
 
   const handleSubcategoryPress = (subcategory: SubcategoryItem) => {
+    console.log(`Selected subcategory: ${subcategory.id}`);
     setCurrentFolderId(subcategory.id);
     setSelectedSubcategory(subcategory);
-    setCurrentView("subcategory");
     // Load documents for this subcategory
-    loadDocuments(selectedCategory!, subcategory.keyName);
+    loadDocuments(subcategory.id!, subcategory.id);
+    setCurrentView("subcategory");
   };
 
   const handleDrawerItemPress = (itemId: string) => {

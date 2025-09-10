@@ -493,7 +493,7 @@ app.get('/api/file-system/contents', authenticateToken, async (req, res) => {
       WHERE 1=1
     `;
     let params = [];
-
+    console.log(parent_id, category, subcategory);
     if (parent_id) {
       query += ' AND fs.parent_id = ?';
       params.push(parent_id);
@@ -939,10 +939,10 @@ async function startServer() {
     app.listen(PORT, () => {
       TLogger(`🚀 Digital Archives Server running on port ${PORT}`);
       console.log(`📊 API Documentation:`);
-      console.log(`   Health: http://192.168.0.109:${PORT}/health`);
-      console.log(`   Auth: http://192.168.0.109:${PORT}/api/auth/login`);
-      console.log(`   File System: http://192.168.0.109:${PORT}/api/file-system/contents`);
-      console.log(`   Upload: http://192.168.0.109:${PORT}/api/file-system/upload`);
+      console.log(`   Health: http://192.168.0.107:${PORT}/health`);
+      console.log(`   Auth: http://192.168.0.107:${PORT}/api/auth/login`);
+      console.log(`   File System: http://192.168.0.107:${PORT}/api/file-system/contents`);
+      console.log(`   Upload: http://192.168.0.107:${PORT}/api/file-system/upload`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
