@@ -18,6 +18,7 @@ import Icon from './Icon';
 
 const FileManager: React.FC<FileManagerProps & {
   onNavigateHome?: () => void;
+  refreshTrigger?: number;   // 🔥 thêm
 }> = ({
   category,
   categoryName,
@@ -27,6 +28,7 @@ const FileManager: React.FC<FileManagerProps & {
   currentFolderId,
   onFolderChange,
   onNavigateHome,
+  refreshTrigger,   // 🔥 thêm
 }) => {
   const [items, setItems] = useState<FileSystemItem[]>([]);
   const [breadcrumb, setBreadcrumb] = useState<BreadcrumbItem[]>([]);
@@ -54,7 +56,7 @@ const handleApiError = async (error: any) => {
   useEffect(() => {
     loadFolderContents();
     loadBreadcrumb();
-  }, [currentFolderId, category]);
+  }, [currentFolderId, category, refreshTrigger]); // 🔥 thêm refreshTrigger vào deps
 
   const loadFolderContents = async () => {
     setLoading(true);

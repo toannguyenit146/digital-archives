@@ -102,7 +102,6 @@ class ApiService {
   // Get folder contents (files and subfolders)
   static async getFolderContents(folderId: string | null, category?: string) {
     const params = new URLSearchParams();
-    console.log("==============>>>>>>>>>>> folderId :", folderId);
     if (folderId) params.append("parent_id", folderId);
     // if (category) params.append("category", category);
 
