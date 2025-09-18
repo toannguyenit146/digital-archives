@@ -2,37 +2,48 @@
 const mysql = require('mysql2/promise');
 const bcrypt = require('bcryptjs');
 require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'bantuyenhuan',
-  database: process.env.DB_NAME || 'semi',
+  database: process.env.DB_NAME || 'semi_be',
 };
+
+// Load categories và subcategories
+console.log(__dirname)
+const categories = JSON.parse(
+  fs.readFileSync(path.join(__dirname, './data/categories.json'), 'utf-8')
+);
+const subcategories = JSON.parse(
+  fs.readFileSync(path.join(__dirname, './data/subcategories.json'), 'utf-8')
+);
 
 async function initializeDatabase() {
   let connection;
-  
   try {
-    // Connect to MySQL
+    // Connect to MySQL server
     connection = await mysql.createConnection({
       host: dbConfig.host,
       user: dbConfig.user,
       password: dbConfig.password,
     });
-
     console.log('✅ Connected to MySQL server');
 
-    // Create database if it doesn't exist
-    await connection.execute(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\` 
-      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
+    // Create database if not exists
+    await connection.query(`
+      CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\`
+      CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci
+    `);
     console.log(`✅ Database '${dbConfig.database}' created/verified`);
 
-    // Use the database
+    // Use database
     await connection.query(`USE \`${dbConfig.database}\``);
 
-    // Create users table
-    await connection.execute(`
+    // ---------------- Users table ----------------
+    await connection.query(`
       CREATE TABLE IF NOT EXISTS users (
         id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
         username VARCHAR(50) UNIQUE NOT NULL,
@@ -47,34 +58,41 @@ async function initializeDatabase() {
     `);
     console.log('✅ Users table created/verified');
 
-    // Create documents table
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS documents (
+    // ---------------- File System table ----------------
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS file_system (
         id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        title VARCHAR(255) NOT NULL,
-        filename VARCHAR(255) NOT NULL,
-        author VARCHAR(100) NOT NULL,
-        category VARCHAR(50) NOT NULL,
-        subcategory VARCHAR(50) DEFAULT NULL,
-        file_url VARCHAR(500) NOT NULL,
-        file_path VARCHAR(500) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        type ENUM('folder','file') NOT NULL,
+        parent_id VARCHAR(36) DEFAULT NULL,
+        path VARCHAR(1000) NOT NULL,
+        filename VARCHAR(255) DEFAULT NULL,
+        title VARCHAR(255) DEFAULT NULL,
+        author VARCHAR(100) DEFAULT NULL,
+        file_url VARCHAR(500) DEFAULT NULL,
+        file_path VARCHAR(500) DEFAULT NULL,
         file_size BIGINT DEFAULT 0,
         file_type VARCHAR(100) DEFAULT NULL,
+        category VARCHAR(50) DEFAULT NULL,
+        subcategory VARCHAR(50) DEFAULT NULL,
         uploaded_by VARCHAR(36) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (parent_id) REFERENCES file_system(id) ON DELETE CASCADE,
         FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+        INDEX idx_parent_id (parent_id),
+        INDEX idx_type (type),
+        INDEX idx_path (path(255)),
         INDEX idx_category (category),
-        INDEX idx_subcategory (subcategory),
         INDEX idx_uploaded_by (uploaded_by),
-        INDEX idx_created_at (created_at),
-        FULLTEXT KEY ft_title_author (title, author)
+        INDEX idx_name (name),
+        FULLTEXT KEY ft_name_title_author (name, title, author)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
-    console.log('✅ Documents table created/verified');
+    console.log('✅ File system table created/verified');
 
-    // Create sessions table (optional for JWT blacklisting)
-    await connection.execute(`
+    // ---------------- User Sessions table ----------------
+    await connection.query(`
       CREATE TABLE IF NOT EXISTS user_sessions (
         id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
         user_id VARCHAR(36) NOT NULL,
@@ -90,8 +108,8 @@ async function initializeDatabase() {
     `);
     console.log('✅ User sessions table created/verified');
 
-    // Create audit log table
-    await connection.execute(`
+    // ---------------- Audit Logs table ----------------
+    await connection.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
         user_id VARCHAR(36),
@@ -111,129 +129,99 @@ async function initializeDatabase() {
     `);
     console.log('✅ Audit logs table created/verified');
 
-    // Check if default admin user exists
-    const [existingUsers] = await connection.execute(
+    // ---------------- Default Admin User ----------------
+    const [admin] = await connection.query(
       'SELECT id FROM users WHERE username = ?',
       ['bantuyenhuan']
     );
-
-    if (existingUsers.length === 0) {
-      // Create default admin user
+    if (admin.length === 0) {
       const hashedPassword = await bcrypt.hash('12346789', 10);
-      await connection.execute(
+      await connection.query(
         'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
         ['bantuyenhuan', hashedPassword, 'Ban Tuyên Huấn', 'admin']
       );
       console.log('✅ Default admin user created: bantuyenhuan / 12346789');
-    } else {
-      console.log('✅ Default admin user already exists');
     }
 
-    // Create additional sample users
+    // ---------------- Sample Users ----------------
     const sampleUsers = [
       { username: 'user1', password: '123456', fullName: 'Người dùng 1', role: 'user' },
       { username: 'user2', password: '123456', fullName: 'Người dùng 2', role: 'user' },
       { username: 'moderator1', password: '123456', fullName: 'Điều hành viên 1', role: 'moderator' },
     ];
-
-    for (const userData of sampleUsers) {
-      const [existing] = await connection.execute(
-        'SELECT id FROM users WHERE username = ?',
-        [userData.username]
-      );
-
-      if (existing.length === 0) {
-        const hashedPassword = await bcrypt.hash(userData.password, 10);
-        await connection.execute(
-          'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
-          [userData.username, hashedPassword, userData.fullName, userData.role]
+    for (const u of sampleUsers) {
+      const [ex] = await connection.query('SELECT id FROM users WHERE username=?', [u.username]);
+      if (ex.length === 0) {
+        const hashed = await bcrypt.hash(u.password, 10);
+        await connection.query(
+          'INSERT INTO users (username,password,full_name,role) VALUES (?,?,?,?)',
+          [u.username, hashed, u.fullName, u.role]
         );
-        console.log(`✅ Sample user created: ${userData.username} / ${userData.password}`);
+        console.log(`✅ Sample user created: ${u.username} / ${u.password}`);
       }
     }
 
-    // Create sample documents (optional)
-    const [adminUser] = await connection.execute(
-      'SELECT id FROM users WHERE username = ?',
+    // ---------------- Root Folders ----------------
+    const [adminUser] = await connection.query(
+      'SELECT id FROM users WHERE username=? LIMIT 1',
       ['bantuyenhuan']
     );
-
     if (adminUser.length > 0) {
-      const adminUserId = adminUser[0].id;
-      
-      const sampleDocuments = [
-        {
-          title: 'Tài liệu hướng dẫn sử dụng hệ thống',
-          filename: 'huong-dan-su-dung.pdf',
-          author: 'Ban Tuyên Huấn',
-          category: 'tailieu',
-          subcategory: 'lichsu',
-          fileUrl: '/uploads/tailieu/lichsu/sample-doc-1.pdf',
-          filePath: 'uploads/tailieu/lichsu/sample-doc-1.pdf',
-          fileSize: 1024000,
-          fileType: 'application/pdf'
-        },
-        {
-          title: 'Nghị quyết số 01/2024 về công tác tuyên truyền',
-          filename: 'nghi-quyet-01-2024.docx',
-          author: 'Ban Chấp hành',
-          category: 'tailieu',
-          subcategory: 'nghiquyet',
-          fileUrl: '/uploads/tailieu/nghiquyet/sample-doc-2.docx',
-          filePath: 'uploads/tailieu/nghiquyet/sample-doc-2.docx',
-          fileSize: 512000,
-          fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        }
-      ];
-
-      for (const doc of sampleDocuments) {
-        const [existing] = await connection.execute(
-          'SELECT id FROM documents WHERE title = ?',
-          [doc.title]
+      const adminId = adminUser[0].id;
+      const rootFolders = categories;
+      for (const f of rootFolders) {
+        const [exist] = await connection.query(
+          'SELECT id FROM file_system WHERE name=? AND parent_id IS NULL AND category=?',
+          [f.title, f.category]
         );
-
-        if (existing.length === 0) {
-          await connection.execute(`
-            INSERT INTO documents (title, filename, author, category, subcategory, file_url, file_path, file_size, file_type, uploaded_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `, [
-            doc.title,
-            doc.filename,
-            doc.author,
-            doc.category,
-            doc.subcategory,
-            doc.fileUrl,
-            doc.filePath,
-            doc.fileSize,
-            doc.fileType,
-            adminUserId
-          ]);
-          console.log(`✅ Sample document created: ${doc.title}`);
+        if (exist.length === 0) {
+          await connection.query(
+            'INSERT INTO file_system (name,type,parent_id,path,category,uploaded_by) VALUES (?, "folder", NULL, ?, ?, ?)',
+            [f.title, `/${f.title}`, f.keyName, adminId]
+          );
         }
+      }
+      console.log('✅ Root folders created/verified');
+
+      // ---------------- Subfolders for "Tài liệu" ----------------
+      const [tailieuRoot] = await connection.query(
+        'SELECT id FROM file_system WHERE name=? AND parent_id IS NULL AND category=?',
+        ['Tài liệu', 'tailieu']
+      );
+      if (tailieuRoot.length > 0) {
+        const rootId = tailieuRoot[0].id;
+        const subFolders = subcategories;
+        for (const sf of subFolders) {
+          const [exist] = await connection.query(
+            'SELECT id FROM file_system WHERE name=? AND parent_id=? AND category=?',
+            [sf.title, rootId, 'tailieu']
+          );
+          if (exist.length === 0) {
+            await connection.query(
+              'INSERT INTO file_system (name,type,parent_id,path,category,subcategory,uploaded_by) VALUES (?, "folder", ?, ?, ?, ?, ?)',
+              [sf.title, rootId, `/Tài liệu/${sf.title}`, 'tailieu', sf.keyName, adminId]
+            );
+          }
+        }
+        console.log('✅ Subfolders for "Tài liệu" created/verified');
       }
     }
 
     console.log('\n🎉 Database initialization completed successfully!');
-    console.log('\n📋 Summary:');
     console.log(`   Database: ${dbConfig.database}`);
-    console.log(`   Host: ${dbConfig.host}`);
     console.log(`   Default Admin: bantuyenhuan / 12346789`);
     console.log(`   Sample Users: user1, user2, moderator1 / 123456`);
-    console.log('\n🚀 You can now start the server with: npm run dev');
 
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+  } catch (err) {
+    console.error('❌ Database initialization failed:', err);
     process.exit(1);
   } finally {
-    if (connection) {
-      await connection.end();
-    }
+    if (connection) await connection.end();
   }
 }
 
-// Run if called directly
-if (require.main === module) {
-  initializeDatabase();
-}
+// if (require.main === module) {
+//   initializeDatabase();
+// }
 
 module.exports = { initializeDatabase };

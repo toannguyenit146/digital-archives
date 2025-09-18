@@ -176,12 +176,19 @@ class ApiService {
   }
 
   // Search files
-  static async searchFiles(query: string, category?: string) {
-    const params = new URLSearchParams({ query });
-    if (category) params.append("category", category);
+static async searchFiles(query: string, category?: string, fileType?: string) {
+  const token = await StorageOS.getItem("authToken");
+  let url = `${API_BASE_URL}/file-system/search?query=${encodeURIComponent(query)}`;
+  if (category) url += `&category=${category}`;
+  if (fileType) url += `&fileType=${fileType}`;
 
-    return this.makeRequest(`/file-system/search?${params.toString()}`);
-  }
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  return response.json();
+}
+
 
   // Download file
   static async downloadFile(fileId: string) {

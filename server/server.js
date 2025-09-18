@@ -8,11 +8,18 @@ const path = require('path');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
-const TLogger = require('../log/logger');
+const { initializeDatabase } = require("./scripts/init-database");
+
+const categories = JSON.parse(
+  fs.readFileSync(path.join(__dirname, './scripts/data/categories.json'), 'utf-8')
+);
+const subcategories = JSON.parse(
+  fs.readFileSync(path.join(__dirname, './scripts/data/subcategories.json'), 'utf-8')
+);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SECRET_KEY = process.env.JWT_SECRET || 'semi_digital_archives_secret_key';
+const SECRET_KEY = process.env.JWT_SECRET;
 
 // Middleware
 app.use(cors());
@@ -25,7 +32,7 @@ const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || 'bantuyenhuan',
-  database: process.env.DB_NAME || 'semi',
+  database: process.env.DB_NAME || 'semi_be',
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -34,13 +41,13 @@ const dbConfig = {
 let db;
 
 // Initialize database
-async function initializeDatabase() {
+async function setupDatabase() {
   try {
     db = mysql.createPool(dbConfig);
     
     // Test connection
     const connection = await db.getConnection();
-    TLogger('✅ Connected to MySQL database successfully');
+    console.log('✅ Connected to MySQL database successfully');
     connection.release();
     
     // Create tables if they don't exist
@@ -55,64 +62,11 @@ async function initializeDatabase() {
 // Create database tables
 async function createTables() {
   try {
-    // Users table
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        username VARCHAR(50) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        full_name VARCHAR(100) NOT NULL,
-        role VARCHAR(20) DEFAULT 'user',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
+    initializeDatabase();
+    console.log('✅ Database tables created/verified successfully');
 
-    // File System table (replaces documents table)
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS file_system (
-        id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-        name VARCHAR(255) NOT NULL,
-        type ENUM('folder', 'file') NOT NULL,
-        parent_id VARCHAR(36) DEFAULT NULL,
-        path VARCHAR(1000) NOT NULL,
-        
-        filename VARCHAR(255) DEFAULT NULL,
-        title VARCHAR(255) DEFAULT NULL,
-        author VARCHAR(100) DEFAULT NULL,
-        file_url VARCHAR(500) DEFAULT NULL,
-        file_path VARCHAR(500) DEFAULT NULL,
-        file_size BIGINT DEFAULT 0,
-        file_type VARCHAR(100) DEFAULT NULL,
-        
-        category VARCHAR(50) DEFAULT NULL,
-        subcategory VARCHAR(50) DEFAULT NULL,
-        uploaded_by VARCHAR(36) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        
-        FOREIGN KEY (parent_id) REFERENCES file_system(id) ON DELETE CASCADE,
-        FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
-        
-        INDEX idx_parent_id (parent_id),
-        INDEX idx_type (type),
-        INDEX idx_path (path(255)),
-        INDEX idx_category (category),
-        INDEX idx_uploaded_by (uploaded_by),
-        INDEX idx_name (name),
-        FULLTEXT KEY ft_name_title_author (name, title, author)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-    `);
-
-    TLogger('✅ Database tables created/verified successfully');
-    
     // Create default admin user if not exists
     await createDefaultUser();
-    
-    // Create root folders for each category
-    await createRootFolders();
-    await createSubFolders();
-    
   } catch (error) {
     console.error('❌ Error creating database tables:', error);
     throw error;
@@ -133,7 +87,7 @@ async function createDefaultUser() {
         'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
         ['bantuyenhuan', hashedPassword, 'Ban Tuyên Huấn', 'admin']
       );
-      TLogger('✅ Default admin user created: bantuyenhuan / 12346789');
+      console.log('✅ Default admin user created: bantuyenhuan / 12346789');
     }
   } catch (error) {
     console.error('❌ Error creating default user:', error);
@@ -152,88 +106,25 @@ async function createRootFolders() {
     
     const adminUserId = adminUser[0].id;
     
-    const rootFolders = [
-      { name: 'Tài liệu', category: 'tailieu' },
-      { name: 'Kiến thức thường trực', category: 'kienthucthuongtruc' },
-      { name: 'Đối tượng SQ và QNCN', category: 'doituongsqvaqncn' },
-      { name: 'Đối tượng HL TPD', category: 'doituonghltpd' },
-      { name: 'Hạ sĩ quan và binh sĩ', category: 'hasiquanvabinhsi' },
-      { name: 'Đảng viên và đảng viên mới', category: 'dangvienvadangvienmoi' },
-      { name: 'Đối tượng đoàn viên', category: 'doituongdoanvien' },
-      { name: 'Câu hỏi kiến thức GDCT', category: 'cauhoikienthucgdct' },
-      { name: 'Câu hỏi kiến thức pháp luật', category: 'cauhoikienthucphapluat' }
-    ];
+    const rootFolders = categories;
     
     for (const folder of rootFolders) {
       const [existing] = await db.query(
         'SELECT id FROM file_system WHERE name = ? AND parent_id IS NULL AND category = ?',
-        [folder.name, folder.category]
+        [folder.title, folder.keyName]
       );
       
       if (existing.length === 0) {
         await db.query(`
           INSERT INTO file_system (name, type, parent_id, path, category, uploaded_by)
           VALUES (?, 'folder', NULL, ?, ?, ?)
-        `, [folder.name, `/${folder.name}`, folder.category, adminUserId]);
+        `, [folder.title, `/${folder.title}`, folder.keyName, adminUserId]);
       }
     }
     
-    TLogger('✅ Root folders created/verified');
+    console.log('✅ Root folders created/verified');
   } catch (error) {
     console.error('❌ Error creating root folders:', error);
-  }
-}
-
-async function createSubFolders() {
-  try {
-    const [adminUser] = await db.query(
-      'SELECT id FROM users WHERE username = ? LIMIT 1',
-      ['bantuyenhuan']
-    );
-    
-    if (adminUser.length === 0) return;
-    
-    const adminUserId = adminUser[0].id;
-    
-    const [idCategoryRootFolder] = await db.query(
-      'SELECT id FROM file_system WHERE name = ? AND parent_id IS NULL AND category = ?',
-      ['Tài liệu', 'tailieu']
-    );
-    if (idCategoryRootFolder.length === 0) return;
-
-    const rootFolderId = idCategoryRootFolder[0].id;
-
-    const subFolders = [
-      { name: 'Lịch sử', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Lịch sử' },
-      { name: 'Nghị quyết', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Nghị quyết' },
-      { name: 'Pháp luật', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Pháp luật' },
-      { name: 'Nghị định', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Nghị định' },
-      { name: 'Thông tư', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Thông tư' },
-      { name: 'Quân sự - Quốc phòng', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Quân sự - Quốc phòng' },
-      { name: 'Khoa học', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Khoa học' },
-      { name: 'Kinh tế - Xã hội', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Kinh tế - Xã hội' },
-      { name: 'Văn hóa', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Văn hóa' },
-      { name: 'Hình ảnh', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Hình ảnh' },
-      { name: 'Video', category: 'tailieu', parent_id: rootFolderId, path: '/Tài liệu/Video' }
-    ];
-    
-    for (const folder of subFolders) {
-      const [existing] = await db.query(
-        'SELECT id FROM file_system WHERE name = ? AND parent_id = ? AND category = ?',
-        [folder.name, folder.parent_id, folder.category]
-      );
-      
-      if (existing.length === 0) {
-        await db.query(`
-          INSERT INTO file_system (name, type, parent_id, path, category, uploaded_by)
-          VALUES (?, 'folder', ?, ?, ?, ?)
-        `, [folder.name, folder.parent_id, folder.path, folder.category, adminUserId]);
-      }
-    }
-    
-    TLogger('✅ Subfolders created/verified');
-  } catch (error) {
-    console.error('❌ Error creating subfolders:', error);
   }
 }
 
@@ -242,18 +133,11 @@ function createUploadsDirectory() {
   const uploadsDir = path.join(__dirname, 'uploads');
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
-    TLogger('✅ Uploads directory created');
+    console.log('✅ Uploads directory created');
   }
   
-  // Create category subdirectories
-  const categories = [
-    'tailieu', 'kienthucthuongtruc', 'doituongsqvaqncn', 'doituonghltpd',
-    'hasiquanvabinhsi', 'dangvienvadangvienmoi', 'doituongdoanvien',
-    'cauhoikienthucgdct', 'cauhoikienthucphapluat'
-  ];
-  
   categories.forEach(category => {
-    const categoryDir = path.join(uploadsDir, category);
+    const categoryDir = path.join(uploadsDir, category.title);
     if (!fs.existsSync(categoryDir)) {
       fs.mkdirSync(categoryDir, { recursive: true });
     }
@@ -262,16 +146,12 @@ function createUploadsDirectory() {
 
 // Create uploads subdirectories
 function createUploadsSubdirectories() {
-  const baseDir = path.join(__dirname, 'uploads', 'tailieu');
-  const subDirs = [
-    'lichsu', 'nghiquyet', 'phapluat', 'nghidinh', 'thongtu',
-    'quansu-quocphong', 'khoahoc', 'kinhte-xahoi', 'vanhoa', 'hinhanh', 'video'
-  ];
-  subDirs.forEach(subDir => {
-    const fullPath = path.join(baseDir, subDir);
+  const baseDir = path.join(__dirname, 'uploads', 'Tài liệu');
+  subcategories.forEach(subDir => {
+    const fullPath = path.join(baseDir, subDir.title);
     if (!fs.existsSync(fullPath)) {
       fs.mkdirSync(fullPath, { recursive: true });
-      TLogger(`✅ Created uploads subdirectory: ${fullPath}`);
+      console.log(`✅ Created uploads subdirectory: ${fullPath}`);
     }
   });
 }
@@ -918,6 +798,63 @@ app.get('/api/stats', authenticateToken, async (req, res) => {
   }
 });
 
+// Search files/folders
+app.get('/api/file-system/search', authenticateToken, async (req, res) => {
+  try {
+    const { query, category, fileType } = req.query;
+
+    if (!query || !query.trim()) {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    // FULLTEXT search cho name, title, author + fallback LIKE
+    let sql = `
+      SELECT fs.*, u.full_name as uploader_name
+      FROM file_system fs
+      LEFT JOIN users u ON fs.uploaded_by = u.id
+      WHERE (MATCH(fs.name, fs.title, fs.author) AGAINST(? IN BOOLEAN MODE)
+             OR fs.name LIKE ? OR fs.title LIKE ? OR fs.author LIKE ?)
+    `;
+    const params = [query + '*', `%${query}%`, `%${query}%`, `%${query}%`];
+
+    if (category) {
+      sql += ' AND fs.category = ?';
+      params.push(category);
+    }
+
+    if (fileType) {
+      // Cho phép tìm "pdf", "doc", "image"…
+      sql += ' AND fs.file_type LIKE ?';
+      params.push(`%${fileType}%`);
+    }
+
+    sql += ' ORDER BY fs.type DESC, fs.name ASC';
+
+    const [results] = await db.query(sql, params);
+
+    res.json({
+      success: true,
+      documents: results.map(item => ({
+        id: item.id,
+        name: item.name,
+        type: item.type,
+        path: item.path,
+        title: item.title,
+        author: item.author,
+        file_size: item.file_size,
+        file_type: item.file_type,
+        category: item.category,
+        subcategory: item.subcategory,
+        created_at: item.created_at,
+        uploader_name: item.uploader_name
+      }))
+    });
+  } catch (error) {
+    console.error('Search error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
@@ -932,12 +869,12 @@ app.use((req, res) => {
 // Initialize and start server
 async function startServer() {
   try {
-    await initializeDatabase();
+    await setupDatabase();
     createUploadsDirectory();
     createUploadsSubdirectories();
     
     app.listen(PORT, () => {
-      TLogger(`🚀 Digital Archives Server running on port ${PORT}`);
+      console.log(`🚀 Digital Archives Server running on port ${PORT}`);
       console.log(`📊 API Documentation:`);
       console.log(`   Health: http://192.168.0.107:${PORT}/health`);
       console.log(`   Auth: http://192.168.0.107:${PORT}/api/auth/login`);
@@ -952,19 +889,19 @@ async function startServer() {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  TLogger('Received SIGTERM, shutting down gracefully');
+  console.log('Received SIGTERM, shutting down gracefully');
   if (db) {
     await db.end();
-    TLogger('Database connection closed');
+    console.log('Database connection closed');
   }
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  TLogger('Received SIGINT, shutting down gracefully');
+  console.log('Received SIGINT, shutting down gracefully');
   if (db) {
     await db.end();
-    TLogger('Database connection closed');
+    console.log('Database connection closed');
   }
   process.exit(0);
 });

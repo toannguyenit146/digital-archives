@@ -1,0 +1,92 @@
+[
+    {
+        "id": "8592f553-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Tài liệu",
+        "color": "#4A90E2",
+        "icon": "document-text",
+        "description": "Quản lý và truy cập tài liệu",
+        "hasSubcategories": "true",
+        "allowUpload": "true",
+        "keyName": "tailieu"
+    },
+    {
+        "id": "85940a4a-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Kiến thức thường trực",
+        "color": "#7ED321",
+        "icon": "school",
+        "description": "Kiến thức cần thiết thường xuyên",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "kienthucthuongtruc"
+    },
+    {
+        "id": "85951014-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Đối tượng SQ, QNCN",
+        "color": "#F5A623",
+        "icon": "people",
+        "description": "Thông tin sĩ quan, quân nhân chuyên nghiệp",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "doituongsqvaqncn"
+    },
+    {
+        "id": "85962f60-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Đối tượng HLTPĐ",
+        "color": "#FF6B6B",
+        "icon": "training",
+        "description": "HSQ, BS thay phiên đảo",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "doituonghltpd"
+    },
+    {
+        "id": "8597540c-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Đối tượng HSQ, BS",
+        "color": "#D0021B",
+        "icon": "shield",
+        "description": "Hạ sĩ quan và binh sĩ",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "hasiquanvabinhsi"
+    },
+    {
+        "id": "85986cc0-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "ĐTĐ, ĐVM",
+        "color": "#9013FE",
+        "icon": "party",
+        "description": "Đảng viên và đảng viên mới",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "dangvienvadangvienmoi"
+    },
+    {
+        "id": "8599791d-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Đối tượng Đoàn viên",
+        "color": "#50E3C2",
+        "icon": "ribbon",
+        "description": "Thông tin về đoàn viên",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "doituongdoanvien"
+    },
+    {
+        "id": "859a8eb8-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Cấu hỏi kiến thức GDCT",
+        "color": "#B8E986",
+        "icon": "help-circle",
+        "description": "Câu hỏi giáo dục chính trị",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "cauhoikienthucgdct"
+    },
+    {
+        "id": "859b882d-896d-11f0-9914-ce3dc8f2a4bb",
+        "title": "Cấu hỏi kiến thức pháp luật",
+        "color": "#4BD5EA",
+        "icon": "library",
+        "description": "Câu hỏi về pháp luật",
+        "hasSubcategories": "false",
+        "allowUpload": "true",
+        "keyName": "cauhoikienthucphapluat"
+    }
+]

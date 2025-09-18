@@ -94,23 +94,24 @@ export default function EnhancedDigitalArchivesV4() {
     }
   };
 
-  const handleSearch = async (query: string, category: string) => {
-    setSearchQuery(query);
-    setCurrentView("search");
+  const handleSearch = async (query: string, category?: string, fileType?: string) => {
+  setSearchQuery(query);
+  setCurrentView("search");
 
-    try {
-      const response = await ApiService.searchFiles(query, category);
-      if (response.success) {
-        setSearchResults(response.documents);
-      } else {
-        setSearchResults([]);
-      }
-    } catch (error) {
-      console.error("Search error:", error);
+  try {
+    const response = await ApiService.searchFiles(query, category, fileType);
+    if (response.success) {
+      setSearchResults(response.documents);
+    } else {
       setSearchResults([]);
-      Alert.alert("Lỗi", "Không thể thực hiện tìm kiếm");
     }
-  };
+  } catch (error) {
+    console.error("Search error:", error);
+    setSearchResults([]);
+    Alert.alert("Lỗi", "Không thể thực hiện tìm kiếm");
+  }
+};
+
 
   const handleDownload = async (fileSystemItem: FileSystemItem) => {
     try {
