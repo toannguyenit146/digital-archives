@@ -6,7 +6,6 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 const { initializeDatabase } = require("./scripts/init-database");
 
@@ -20,6 +19,18 @@ const subcategories = JSON.parse(
 const app = express();
 const PORT = process.env.PORT || 3000;
 const SECRET_KEY = process.env.JWT_SECRET;
+const os = require('os');
+
+const nets = os.networkInterfaces();
+let serverIp = '';
+
+for (const name of Object.keys(nets)) {
+  for (const net of nets[name]) {
+    if (net.family === 'IPv4' && !net.internal) {
+      serverIp = net.address;
+    }
+  }
+}
 
 // Middleware
 app.use(cors());
@@ -31,7 +42,8 @@ app.use('/uploads', express.static('uploads')); // Serve static files
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'bantuyenhuan',
+  port: process.env.DB_PORT || '3307',
+  password: process.env.MYSQL_ROOT_PASSWORD,
   database: process.env.DB_NAME || 'semi_be',
   waitForConnections: true,
   connectionLimit: 10,
@@ -64,67 +76,9 @@ async function createTables() {
   try {
     initializeDatabase();
     console.log('✅ Database tables created/verified successfully');
-
-    // Create default admin user if not exists
-    await createDefaultUser();
   } catch (error) {
     console.error('❌ Error creating database tables:', error);
     throw error;
-  }
-}
-
-// Create default user
-async function createDefaultUser() {
-  try {
-    const [existingUser] = await db.query(
-      'SELECT id FROM users WHERE username = ?',
-      ['bantuyenhuan']
-    );
-    
-    if (existingUser.length === 0) {
-      const hashedPassword = await bcrypt.hash('12346789', 10);
-      await db.query(
-        'INSERT INTO users (username, password, full_name, role) VALUES (?, ?, ?, ?)',
-        ['bantuyenhuan', hashedPassword, 'Ban Tuyên Huấn', 'admin']
-      );
-      console.log('✅ Default admin user created: bantuyenhuan / 12346789');
-    }
-  } catch (error) {
-    console.error('❌ Error creating default user:', error);
-  }
-}
-
-// Create root folders for categories
-async function createRootFolders() {
-  try {
-    const [adminUser] = await db.query(
-      'SELECT id FROM users WHERE username = ? LIMIT 1',
-      ['bantuyenhuan']
-    );
-    
-    if (adminUser.length === 0) return;
-    
-    const adminUserId = adminUser[0].id;
-    
-    const rootFolders = categories;
-    
-    for (const folder of rootFolders) {
-      const [existing] = await db.query(
-        'SELECT id FROM file_system WHERE name = ? AND parent_id IS NULL AND category = ?',
-        [folder.title, folder.keyName]
-      );
-      
-      if (existing.length === 0) {
-        await db.query(`
-          INSERT INTO file_system (name, type, parent_id, path, category, uploaded_by)
-          VALUES (?, 'folder', NULL, ?, ?, ?)
-        `, [folder.title, `/${folder.title}`, folder.keyName, adminUserId]);
-      }
-    }
-    
-    console.log('✅ Root folders created/verified');
-  } catch (error) {
-    console.error('❌ Error creating root folders:', error);
   }
 }
 
@@ -876,10 +830,10 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`🚀 Digital Archives Server running on port ${PORT}`);
       console.log(`📊 API Documentation:`);
-      console.log(`   Health: http://192.168.0.107:${PORT}/health`);
-      console.log(`   Auth: http://192.168.0.107:${PORT}/api/auth/login`);
-      console.log(`   File System: http://192.168.0.107:${PORT}/api/file-system/contents`);
-      console.log(`   Upload: http://192.168.0.107:${PORT}/api/file-system/upload`);
+      console.log(`   Health: http://${serverIp}:${PORT}/health`);
+      console.log(`   Auth: http://${serverIp}:${PORT}/api/auth/login`);
+      console.log(`   File System: http://${serverIp}:${PORT}/api/file-system/contents`);
+      console.log(`   Upload: http://${serverIp}:${PORT}/api/file-system/upload`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

@@ -1,0 +1,43 @@
+networks:
+  semi-network:
+    external: false
+    name: semi-network
+
+services:
+  mysql-semi-app:
+    image: mysql:9.4.0
+    container_name: semi-db
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./../../mysql/mysql-data:/var/lib/mysql
+      - ./../../mysql/mysql-init:/docker-entrypoint-initdb.d
+    tty: true
+    networks:
+      - semi-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api-semi-app:
+    image: toannguyenit146/digital-archives:latest
+    container_name: semi_be
+    env_file:
+      - .env
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/var/lib/semi
+      - ./wait-and-run.sh:/wait-and-run.sh
+    tty: true
+    networks:
+      - semi-network
+    depends_on:
+      - mysql-semi-app
+    entrypoint: ["sh", "/wait-and-run.sh"]

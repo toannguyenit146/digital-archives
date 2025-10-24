@@ -169,15 +169,16 @@ async function initializeDatabase() {
     if (adminUser.length > 0) {
       const adminId = adminUser[0].id;
       const rootFolders = categories;
-      for (const f of rootFolders) {
+      for (const [i, f] of rootFolders.entries()) {
         const [exist] = await connection.query(
-          'SELECT id FROM file_system WHERE name=? AND parent_id IS NULL AND category=?',
-          [f.title, f.category]
+          'SELECT id FROM file_system WHERE id=? AND name=? AND parent_id IS NULL AND category=?',
+          [f.id, f.title, f.category]
         );
         if (exist.length === 0) {
           await connection.query(
-            'INSERT INTO file_system (name,type,parent_id,path,category,uploaded_by) VALUES (?, "folder", NULL, ?, ?, ?)',
-            [f.title, `/${f.title}`, f.keyName, adminId]
+            `INSERT INTO file_system (id,name,type,parent_id,path,category,uploaded_by,filename,title,author,file_url,file_path,file_size) ` +
+            `VALUES (?, ?, "folder", NULL, ?, ?, ?, ?, ?,?, ?, ?, ?)`,
+            [f.id, f.title, `/${f.title}`, f.keyName, adminId, f.description, f.color, f.icon, f.hasSubcategories, f.allowUpload, i + 1]
           );
         }
       }
@@ -191,15 +192,16 @@ async function initializeDatabase() {
       if (tailieuRoot.length > 0) {
         const rootId = tailieuRoot[0].id;
         const subFolders = subcategories;
-        for (const sf of subFolders) {
+        for (const [i, sf] of subFolders.entries()) {
           const [exist] = await connection.query(
             'SELECT id FROM file_system WHERE name=? AND parent_id=? AND category=?',
             [sf.title, rootId, 'tailieu']
           );
           if (exist.length === 0) {
             await connection.query(
-              'INSERT INTO file_system (name,type,parent_id,path,category,subcategory,uploaded_by) VALUES (?, "folder", ?, ?, ?, ?, ?)',
-              [sf.title, rootId, `/Tài liệu/${sf.title}`, 'tailieu', sf.keyName, adminId]
+              `INSERT INTO file_system (id,name,type,parent_id,path,category,subcategory,uploaded_by,filename,title,author,file_size) ` + 
+              `VALUES (?, ?, "folder", ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [sf.id, sf.title, rootId, `/Tài liệu/${sf.title}`, 'tailieu', sf.keyName, adminId, sf.description, sf.keyName, sf.icon, i + 1]
             );
           }
         }
